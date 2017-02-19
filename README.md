@@ -1,7 +1,7 @@
 libgdx-sandbox
 ===============
 
-A silly little LibGDX sandbox.
+Sandbox for all things LibGDX.
 
 ### How to get started
 
