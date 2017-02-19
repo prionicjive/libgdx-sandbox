@@ -5,7 +5,7 @@ Sandbox for all things LibGDX.
 
 ### How to get started
 
-Clone the repo to your desktop or download and extract the master [ZIP](https://github.com/innerlogic/libgdx-sandbox/archive/master.zip) file.
+Clone the repo to your desktop.
 
 #### Setup Environment Variables
 Certain environment variables need to be set. Refer to the [LibGDX wiki](https://github.com/libgdx/libgdx/wiki/Setting-up-your-Development-Environment-%28Eclipse%2C-Intellij-IDEA%2C-NetBeans%29) for instructions on how to install all the necessary prerequisites.
