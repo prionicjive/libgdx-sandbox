@@ -3,7 +3,7 @@ libgdx-sandbox
 
 A silly little LibGDX sandbox.
 
-###How to get started
+### How to get started
 
 Clone the repo to your desktop or download and extract the master [ZIP](https://github.com/innerlogic/libgdx-sandbox/archive/master.zip) file.
 
