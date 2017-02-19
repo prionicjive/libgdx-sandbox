@@ -1,0 +1,13 @@
+fonts/munro/munro_10.fnt
+fonts/munro/munro_20.fnt
+fonts/munro/munro_30.fnt
+fonts/munro/munro_40.fnt
+fonts/munro/munro_72.fnt
+fonts/munrosmall/munrosmall_10.fnt
+fonts/munrosmall/munrosmall_20.fnt
+fonts/munrosmall/munrosmall_30.fnt
+fonts/profont/profont_12.fnt
+fonts/uni/uni_16.fnt
+fonts/uni/uni_24.fnt
+fonts/uni/uni_40.fnt
+fonts/uni/uni_72.fnt

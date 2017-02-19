@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="40" height="22" tilewidth="16" tileheight="16" nextobjectid="14">
+ <tileset firstgid="1" name="Metroid Zero Mission" tilewidth="16" tileheight="16" tilecount="36" columns="6">
+  <image source="tiles.png" width="96" height="96"/>
+ </tileset>
+ <layer name="layer-main" width="40" height="22">
+  <data encoding="base64" compression="zlib">
+   eJzNl90OgjAMhQsoICo3cAM38v5P6RYhqU3bHYEgJ2nkZ1s/u8MGBRFdQlxDlCGKA89TbfMQLzqv6hDZvyEctSEq4155JIihPsTTuGdxS3UhRic6cJyYrxF5c6c/wreweUIZq7kdz+v5j7eb6PNc8eB1S/EtjHcRk8gn6+f5D51fVO2KPtJ/vJZn4JP+q4zjPcT5CrCP9B9nQtcXa32/0bfXUCYu6T+vZh3pz6E1bzXIMBm/UdJ/a/is+qF8njz/bdUefHGMgZ1v3Yv5f92DL3ontb5qegBtNL7I3xC+50X/aTVL7QvWns2F1s97v4v+szzH+eQYkk/LgdbIUz3n4u8bi7z67ZEbGbcV11A+ZH5T0sYfxHmvXPP6Z0qsZZLjjwrLRMd+D/36fRTn9g39kQqU
+  </data>
+ </layer>
+ <objectgroup name="layer-triggers">
+  <object id="13" name="playerSpawnPoint" type="playerSpawn" x="319.5" y="49" width="16" height="16"/>
+ </objectgroup>
+</map>
