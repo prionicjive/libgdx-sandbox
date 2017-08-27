@@ -15,11 +15,10 @@ allprojects {
     version = '1.0'
     ext {
         appName = "libgdx-sandbox"
-        gdxVersion = '1.9.5'
-        roboVMVersion = '2.3.0'
+        gdxVersion = '1.9.6'
         box2DLightsVersion = '1.4'
-        ashleyVersion = '1.7.0'
-        aiVersion = '1.8.0'
+        ashleyVersion = '1.7.3'
+        aiVersion = '1.8.1'
     }
 
     repositories {
