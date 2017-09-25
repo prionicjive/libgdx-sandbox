@@ -43,20 +43,20 @@ public class GameScreen extends ScreenAdapter {
 	// Adapted from https://github.com/mattdesl/lwjgl-basics/wiki/2D-Pixel-Perfect-Shadows
 	// ------------------------------------
 
-	// TODO Rename to "light radius" or "light diameter"
-	// The number of rays emitted for a "light", as well as their length. This is used in a 360 degree fashion, so the higher, the higher the precision
-	// but higher fill rate as well. Needs to be power of 2
-	private int lightSize = 256;
+	private int lightFboSize = 512; // Maximum size of all lights
+	private final int MIN_DIAMETER = 64;
+	private final int MAX_ADDITIONAL_DIAMETER = 187;
+	private final int NUM_RAYS = 512;
 
 	private UserFloatFrameBuffer occludersFBO;
 	private UserFloatFrameBuffer shadowMapFBO;
 
-	ShaderProgram shadowMapShader, shadowRenderShader;
+	private ShaderProgram shadowMapShader, shadowRenderShader;
 
-	Array<Light> lights;
+	private Array<Light> lights;
 
-	boolean additive = true;
-	boolean softShadows = true;
+	private boolean additive = true;
+	private boolean softShadows = true;
 
 	public GameScreen(final AustinautsGame game) {
 		_game = game;
@@ -84,12 +84,12 @@ public class GameScreen extends ScreenAdapter {
 		// -------------------------------------
 
 		// Set up Occluders FBO and texture that'll be generated from FBO
-		occludersFBO = new UserFloatFrameBuffer(lightSize, lightSize, false);
+		occludersFBO = new UserFloatFrameBuffer(lightFboSize, lightFboSize, false);
 		occludersFBO.getColorBufferTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
 		// Set up 1D Shadow map FBO and texture that'll be generated from FBO
-		shadowMapFBO = new UserFloatFrameBuffer(lightSize, 1, false);
-		occludersFBO.getColorBufferTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+		shadowMapFBO = new UserFloatFrameBuffer(NUM_RAYS, 1, false);
+		shadowMapFBO.getColorBufferTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
 		// Ensure that not everything about a shader needs to be configured
 		ShaderProgram.pedantic = false;
@@ -112,7 +112,7 @@ public class GameScreen extends ScreenAdapter {
 				float mx = x;
 				float my = Gdx.graphics.getHeight() - y;
 
-				lights.add(new Light(mx, my, randomColor()));
+				lights.add(new Light(mx, my, randomColor(), randomLightDiameter(), NUM_RAYS));
 
 				return true;
 			}
@@ -138,18 +138,24 @@ public class GameScreen extends ScreenAdapter {
 		clearLights();
 	}
 
-	void clearLights() {
+	private void clearLights() {
 		lights.clear();
 
 		// TODO Properly pull from screen width / height
-		lights.add(new Light(Gdx.input.getX(), Gdx.graphics.getHeight() - Gdx.input.getY(), Color.WHITE));
+		lights.add(new Light(Gdx.input.getX(), Gdx.graphics.getHeight() - Gdx.input.getY(),
+				Color.WHITE, randomLightDiameter(), NUM_RAYS ));
 	}
 
-	static Color randomColor() {
+	private Color randomColor() {
 		float intensity = MathUtils.random() * 0.5f + 0.5f;
 
 		// TODO Improve randomness
-		return new Color(MathUtils.random(), MathUtils.random(), MathUtils.random(), intensity);
+		return new Color(_game.randomizer.nextFloat(), _game.randomizer.nextFloat(), _game.randomizer.nextFloat(), intensity);
+	}
+
+	private float randomLightDiameter() {
+		float diameter = MIN_DIAMETER + _game.randomizer.nextInt(187);
+		return diameter > lightFboSize ? lightFboSize : diameter;
 	}
 
 	// TODO Probably can be added elsewhere
@@ -273,10 +279,11 @@ public class GameScreen extends ScreenAdapter {
 			Gdx.gl30.glClear(GL30.GL_COLOR_BUFFER_BIT);
 
 			// Set the camera to the size of our FBO
-			_game.camera.setToOrtho(false, occludersFBO.getWidth(), occludersFBO.getHeight());
+			_game.camera.setToOrtho(false, lightToRender.diameter, lightToRender.diameter);
 
 			// Translate camera so that light is in the center
-			_game.camera.translate(lightToRender.pos.x - lightSize / 2f, lightToRender.pos.y - lightSize / 2f);
+			_game.camera.translate(lightToRender.pos.x - lightToRender.diameter / 2f,
+					lightToRender.pos.y - lightToRender.diameter / 2f);
 
 			// Make sure the camera is up to date
 			_game.camera.update();
@@ -312,14 +319,14 @@ public class GameScreen extends ScreenAdapter {
 			_game.batch.setShader(shadowMapShader);
 			_game.batch.begin();
 			{
-				shadowMapShader.setUniformf("lightCastLength", lightSize);
+				shadowMapShader.setUniformf("lightDiameter", lightToRender.diameter);
 
 				// Reset our camera to the FBO size
-				_game.camera.setToOrtho(false, shadowMapFBO.getWidth(), shadowMapFBO.getHeight());
+				_game.camera.setToOrtho(false, lightToRender.diameter, lightToRender.diameter);
 				_game.batch.setProjectionMatrix(_game.camera.combined);
 
 				// Draw the capture Occluders texture to our 1D shadow map FBO
-				_game.batch.draw(occludersFBO.getColorBufferTexture(), 0, 0, lightSize, shadowMapFBO.getHeight());
+				_game.batch.draw(occludersFBO.getColorBufferTexture(), 0, 0, lightToRender.diameter, lightToRender.diameter);
 			}
 			// Flush batch
 			_game.batch.end();
@@ -337,14 +344,16 @@ public class GameScreen extends ScreenAdapter {
 		_game.batch.setShader(shadowRenderShader);
 		_game.batch.begin();
 		{
-			shadowRenderShader.setUniformf("lightCastLength", lightSize);
+			shadowRenderShader.setUniformf("lightDiameter", lightToRender.diameter);
 			shadowRenderShader.setUniformf("softShadows", softShadows ? 1f : 0f);
+
 
 			// Set the color of the light
 			_game.batch.setColor(lightToRender.color);
 
 			// draw centered on light position
-			_game.batch.draw(shadowMapFBO.getColorBufferTexture(), lightToRender.pos.x - lightSize / 2, lightToRender.pos.y - lightSize / 2, lightSize, lightSize);
+			_game.batch.draw(shadowMapFBO.getColorBufferTexture(), lightToRender.pos.x - lightToRender.diameter / 2,
+					lightToRender.pos.y - lightToRender.diameter / 2, lightToRender.diameter, lightToRender.diameter);
 		}
 		// Flush the batch before swapping shaders
 		_game.batch.end();
@@ -353,10 +362,14 @@ public class GameScreen extends ScreenAdapter {
 	private class Light {
 		Vector2 pos;
 		Color color;
+		float diameter;
+		float rays;
 
-		public Light(float x, float y, Color color) {
-			pos = new Vector2(x, y);
+		public Light(float x, float y, Color color, float diameter, float rays) {
+			this.pos = new Vector2(x, y);
 			this.color = color;
+			this.diameter = diameter;
+			this.rays = rays;
 		}
 	}
 }

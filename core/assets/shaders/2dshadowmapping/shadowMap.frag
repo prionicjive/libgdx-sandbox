@@ -17,11 +17,8 @@ out vec4 fragmentColor;
 // Provided by LibGDX
 uniform sampler2D u_texture;
 
-// The lightCastLength (Length) of the light cast
-uniform float lightCastLength;
-
-// For debugging, use a constant value in final release
-const float UPSCALE = 1.0;
+// The diameter of the light
+uniform float lightDiameter;
 
 // Alpha threshold for our occlusion map
 const float THRESHOLD = 0.75;
@@ -29,19 +26,19 @@ const float THRESHOLD = 0.75;
 void main(void)
 {
     float distance = 1.0;
-    float currPercentOfLightLength = 0.0;
+    float currDiameterPercent = 0.0;
 
-    // The output texture is a 1D texture, so we will essentially sample the column of pixes at the x of the Texture
+    // The output texture is a 1D texture, so we will essentially sample the column of pixels at the x of the Texture
     // coordinates based on the length of the light to cast
-    for (float y = 0.0; y < lightCastLength; y += 1.0)
+    for (float y = 0.0; y < lightDiameter; y += 1.0)
     {
         // Calculate the current percent of the light cast length
-        currPercentOfLightLength = y / lightCastLength;
+        currDiameterPercent = y / lightDiameter;
 
         // Convert calculated texture coordinates into [-1, 1] space
         //
         // NOTE: We only care about the x of the texture coordinates because the output is to a 1D texture
-        vec2 normalizedTexCoords = vec2(vTexCoord0.x, currPercentOfLightLength) * 2.0 - 1.0;
+        vec2 normalizedTexCoords = vec2(vTexCoord0.x, currDiameterPercent) * 2.0 - 1.0;
 
         // Polar coordinates are represented as (radial, theta), which is the length out from an origin and how much to rotate from that point. Tersely, (r, theta)
 
@@ -68,15 +65,13 @@ void main(void)
         // Sample the fragment at the calculated rect coordinates from the occlusion texture
         vec4 sampledFragment = texture2D(u_texture, polarToRectCoords);
 
-        // The current distance is how far from the center we've come
-        float dst = currPercentOfLightLength / UPSCALE;
-
         // If we come across fragment/pixel with a greater opacity value than our THRESHOLD, attempt to store the distance.
         // If the new distance is below the current, then we'll use that for our ray
         float fragmentOpacity = sampledFragment.a;
         if (fragmentOpacity > THRESHOLD)
         {
-            distance = min(distance, dst);
+            distance = currDiameterPercent;
+            break;
         }
     }
 

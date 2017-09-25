@@ -17,8 +17,8 @@ out vec4 fragmentColor;
 // Provided by LibGDX
 uniform sampler2D u_texture;
 
-// The lightCastLength (Length) of the light cast
-uniform float lightCastLength;
+// The diameter of the light
+uniform float lightDiameter;
 
 // Flag to indicate whether or not to compute soft shadows
 uniform float softShadows;
@@ -56,7 +56,7 @@ void main(void)
 
 	// Multiply the blur amount by our distance from center (r, the calculated radial)
 	// This results in more blurriness as the shadow "fades away".
-	float blur = (1.0 / lightCastLength) * smoothstep(0.0, 1.0, r);
+	float blur = (1.0 / lightDiameter) * smoothstep(0.0, 1.0, r);
 
     // Perform a simple guassian, sampling from up to 8 different "casts" besides the original "cast"
 	float sum = getVisibilityFromLookup(vec2(lookupCoords.x - 4.0 * blur, lookupCoords.y), r) * 0.0162162162;
