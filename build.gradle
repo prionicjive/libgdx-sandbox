@@ -1,67 +1,26 @@
 buildscript {
     repositories {
-        mavenLocal()
         mavenCentral()
-        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
-		jcenter()
-    }
-    dependencies {
+        jcenter()
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
     }
 }
 
 allprojects {
-    apply plugin: "idea"
+    apply plugin: 'idea'
+}
 
-    version = '1.0'
-    ext {
-        appName = "libgdx-sandbox"
-        gdxVersion = '1.9.6'
-        box2DLightsVersion = '1.4'
-        ashleyVersion = '1.7.3'
-        aiVersion = '1.8.1'
-    }
+configure(subprojects) {
+    apply plugin: 'java'
+    sourceCompatibility = 1.8
+}
 
+subprojects {
+    version = '0.1.0'
+    ext.appName = 'libgdx-sandbox'
     repositories {
-        mavenLocal()
         mavenCentral()
-        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
-        maven { url "https://oss.sonatype.org/content/repositories/releases/" }
-		maven { url "http://repo.maven.apache.org/maven2/" }
-	}
-}
-
-project(":desktop") {
-    apply plugin: "java"
-
-
-    dependencies {
-        compile project(":core")
-        compile "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
-        compile "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
-        compile "com.badlogicgames.gdx:gdx-box2d-platform:$gdxVersion:natives-desktop"
-        compile "com.badlogicgames.gdx:gdx-controllers-lwjgl3:$gdxVersion"
-        compile "com.badlogicgames.gdx:gdx-tools:$gdxVersion"
-        compile "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+        jcenter()
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
     }
-}
-
-project(":core") {
-    apply plugin: "java"
-
-
-    dependencies {
-        compile "com.badlogicgames.gdx:gdx:$gdxVersion"
-        compile "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
-        compile "com.badlogicgames.gdx:gdx-controllers:$gdxVersion"
-        compile "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
-        compile "com.badlogicgames.box2dlights:box2dlights:$box2DLightsVersion"
-        compile "com.badlogicgames.ashley:ashley:$ashleyVersion"
-        compile "com.badlogicgames.gdx:gdx-ai:$aiVersion"
-        compile "net.dermetfan.libgdx-utils:libgdx-utils:0.13.3"
-        compile "net.dermetfan.libgdx-utils:libgdx-utils-box2d:0.13.3"
-
-		// Add in dependencies here
-        compile 'jfree:jfreechart:1.0.13' // Needed for the uncommons
-        compile 'org.uncommons.maths:uncommons-maths:1.2.2'
-	}
 }
