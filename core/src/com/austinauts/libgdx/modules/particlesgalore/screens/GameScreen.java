@@ -7,16 +7,16 @@ import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.glutils.FloatFrameBuffer;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.austinauts.libgdx.common.utils.ShaderHelper;
-import com.austinauts.libgdx.common.utils.UserFloatFrameBuffer;
 import com.austinauts.libgdx.modules.particlesgalore.particles.ParticleSystem;
 
 public class GameScreen extends ScreenAdapter {
 	// Reference to main game object
 	private final AustinautsGame _game;
 
-	private UserFloatFrameBuffer accumulationFBO;
+	private FloatFrameBuffer accumulationFBO;
 	private TextureRegion accumulationFboTextureRegion;
 
 	// TODO See how to better set up rendering a simple quad with the default shader
@@ -44,7 +44,7 @@ public class GameScreen extends ScreenAdapter {
 		particleSystem = new ParticleSystem(game);
 
 		// Set up the accumulation FBO
-		accumulationFBO = new UserFloatFrameBuffer(_game.masterWorldWidth, _game.masterWorldHeight, false);
+		accumulationFBO = new FloatFrameBuffer(_game.masterWorldWidth, _game.masterWorldHeight, false);
 		accumulationFboTextureRegion = new TextureRegion(accumulationFBO.getColorBufferTexture());
 		accumulationFboTextureRegion.flip(false, true); // Needed to display correctly if rendering to screen
 

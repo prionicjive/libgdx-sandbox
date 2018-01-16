@@ -14,6 +14,7 @@ import com.badlogic.gdx.maps.tiled.TiledMapRenderer;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.TimeUtils;
 
@@ -177,7 +178,7 @@ public class GameScreen extends ScreenAdapter {
 					// Add a tile at the outer rows and edges
 					// OR Determine if a tile should be randomly created at this cell
 					if ((x == 0 || y == 0 || x == numCols - 1 || y == numRows - 1) ||
-						(_game.randomizer.nextInt(101) <= CHANCE_OF_TILE)){
+						(MathUtils.random(101) <= CHANCE_OF_TILE)){
 						// Create a cell and set a tile to it
 						// NOTE: Think of the cell as containing and determining how to render the Tile (Really just the image data)
 						TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();

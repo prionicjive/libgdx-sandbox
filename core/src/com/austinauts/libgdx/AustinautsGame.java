@@ -1,6 +1,6 @@
 package com.austinauts.libgdx;
 
-import com.austinauts.libgdx.modules.shadowmapping.screens.LoadingScreen;
+import com.austinauts.libgdx.modules.particlesgalore.screens.LoadingScreen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.assets.AssetManager;
@@ -18,9 +18,6 @@ import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import org.uncommons.maths.random.MersenneTwisterRNG;
-
-import java.util.Random;
 
 public class AustinautsGame extends Game {
 	public final static String TEXTURE_BLOCK = "textures/block_64x64.png";
@@ -45,13 +42,6 @@ public class AustinautsGame extends Game {
 
 	// Our shape renderer, used to render shapes and perform debug drawing
 	public ShapeRenderer shapeRenderer;
-
-	// PRNGs from the org.uncommon.maths library
-	// - XORShiftRNG (Fastest but least random)
-	// - CellularAutomatonRNG
-	// - MersenneTwisterRNG (Slowest but more random)
-	// Many more with difference in distribution, period and security
-	public Random randomizer = new MersenneTwisterRNG();
 
 	// Our sprite batch, used to optimize 2D rendering
 	public SpriteBatch batch;

@@ -1,8 +1,6 @@
 package com.austinauts.libgdx.modules.particlesgalore.particles;
 
 import com.austinauts.libgdx.AustinautsGame;
-import com.austinauts.libgdx.common.utils.UserFloatFrameBuffer;
-import com.austinauts.libgdx.common.utils.UserFloatTextureData;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -12,8 +10,11 @@ import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes;
+import com.badlogic.gdx.graphics.glutils.FloatFrameBuffer;
+import com.badlogic.gdx.graphics.glutils.FloatTextureData;
 import com.badlogic.gdx.graphics.glutils.FrameBuffer;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.BufferUtils;
@@ -27,14 +28,14 @@ public class ParticleSystem {
 	private AustinautsGame _game;
 
 	// Render target that will hold the positions of the particles
-	private UserFloatFrameBuffer positionRT;
+	private FloatFrameBuffer positionRT;
 
 	// Render target that will hold the velocities of the particles
-	private UserFloatFrameBuffer velocityRT;
+	private FloatFrameBuffer velocityRT;
 
 	// Temporary render target, needed when updating the other render targets.
 	// This is used because if youcan not read and write to a texture at the same time
-	private UserFloatFrameBuffer temporaryRT;
+	private FloatFrameBuffer temporaryRT;
 
 	// Used to store vertex info from the pixel texture
 	private Mesh particlesVB;
@@ -225,17 +226,17 @@ public class ParticleSystem {
 		// Render shaders
 		particleRender = ShaderHelper.createShader(Gdx.files.internal("shaders/particlesgalore/render/transformAndCalculateVertexColor.vert").readString(), Gdx.files.internal("shaders/particlesgalore/render/setPointSpriteColor.frag").readString());
 
-		temporaryRT = new UserFloatFrameBuffer(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, false);
+		temporaryRT = new FloatFrameBuffer(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, false);
 		temporaryTexture = temporaryRT.getColorBufferTexture();
 		temporaryTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
-		positionRT = new UserFloatFrameBuffer(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, false);
+		positionRT = new FloatFrameBuffer(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, false);
 		positionTexture = positionRT.getColorBufferTexture();
-		temporaryTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+		positionTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
-		velocityRT = new UserFloatFrameBuffer(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, false);
+		velocityRT = new FloatFrameBuffer(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, false);
 		velocityTexture = velocityRT.getColorBufferTexture();
-		temporaryTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+		velocityTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
 		psTexture = _game.assetManager.get(AustinautsGame.TEXTURE_PARTICLE);
 	}
@@ -267,7 +268,7 @@ public class ParticleSystem {
 				particlesComponentsArray.add(position.y);
 
 				// Set color
-				color.set(0.1f + _game.randomizer.nextFloat() * 0.3f, 0.3f + _game.randomizer.nextFloat() * 0.5f, 0.3f + _game.randomizer.nextFloat() * 0.7f, 1.0f);
+				color.set(0.1f + MathUtils.random() * 0.3f, 0.3f + MathUtils.random() * 0.5f, 0.3f + MathUtils.random() * 0.7f, 1.0f);
 
 				particlesComponentsArray.add(color.r);
 				particlesComponentsArray.add(color.g);
@@ -275,10 +276,10 @@ public class ParticleSystem {
 				particlesComponentsArray.add(color.a);
 
 				// Set the random value
-				randomValuesComponentsArray.add(_game.randomizer.nextFloat());
-				randomValuesComponentsArray.add(_game.randomizer.nextFloat());
-				randomValuesComponentsArray.add(_game.randomizer.nextFloat());
-				randomValuesComponentsArray.add(_game.randomizer.nextFloat());
+				randomValuesComponentsArray.add(MathUtils.random());
+				randomValuesComponentsArray.add(MathUtils.random());
+				randomValuesComponentsArray.add(MathUtils.random());
+				randomValuesComponentsArray.add(MathUtils.random());
 			}
 		}
 
@@ -289,10 +290,12 @@ public class ParticleSystem {
 		particlesVB.setVertices(particlesComponentsArray.items);
 
 		// Build a texture with random Float values
-		FloatBuffer randomValuesComponentsBuffer = BufferUtils.newFloatBuffer(MAX_PARTICLES * 4);
-		BufferUtils.copy(randomValuesComponentsArray.items, 0, randomValuesComponentsBuffer, MAX_PARTICLES * 4);
-		UserFloatTextureData userFloatTextureData = new UserFloatTextureData(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, randomValuesComponentsBuffer);
+		FloatTextureData userFloatTextureData = new FloatTextureData(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, GL30.GL_RGBA32F, GL30.GL_RGBA, GL30.GL_FLOAT, false);
+		userFloatTextureData.prepare();
+		BufferUtils.copy(randomValuesComponentsArray.items, 0, userFloatTextureData.getBuffer(), MAX_PARTICLES * 4);
 		randomTexture = new Texture(userFloatTextureData);
+		randomTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+		randomTexture.setWrap(Texture.TextureWrap.ClampToEdge, Texture.TextureWrap.ClampToEdge);
 	}
 
 	private void initializeAttractors() {

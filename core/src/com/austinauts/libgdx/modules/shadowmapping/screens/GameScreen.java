@@ -1,7 +1,6 @@
 package com.austinauts.libgdx.modules.shadowmapping.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
-import com.austinauts.libgdx.common.utils.UserFloatFrameBuffer;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -9,6 +8,7 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.glutils.FloatFrameBuffer;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
@@ -48,8 +48,8 @@ public class GameScreen extends ScreenAdapter {
 	private final int MAX_ADDITIONAL_DIAMETER = 187;
 	private final int NUM_RAYS = 512;
 
-	private UserFloatFrameBuffer occludersFBO;
-	private UserFloatFrameBuffer shadowMapFBO;
+	private FloatFrameBuffer occludersFBO;
+	private FloatFrameBuffer shadowMapFBO;
 
 	private ShaderProgram shadowMapShader, shadowRenderShader;
 
@@ -84,11 +84,11 @@ public class GameScreen extends ScreenAdapter {
 		// -------------------------------------
 
 		// Set up Occluders FBO and texture that'll be generated from FBO
-		occludersFBO = new UserFloatFrameBuffer(lightFboSize, lightFboSize, false);
+		occludersFBO = new FloatFrameBuffer(lightFboSize, lightFboSize, false);
 		occludersFBO.getColorBufferTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
 		// Set up 1D Shadow map FBO and texture that'll be generated from FBO
-		shadowMapFBO = new UserFloatFrameBuffer(NUM_RAYS, 1, false);
+		shadowMapFBO = new FloatFrameBuffer(NUM_RAYS, 1, false);
 		shadowMapFBO.getColorBufferTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
 		// Ensure that not everything about a shader needs to be configured
@@ -112,7 +112,7 @@ public class GameScreen extends ScreenAdapter {
 				float mx = x;
 				float my = Gdx.graphics.getHeight() - y;
 
-				lights.add(new Light(mx, my, randomColor(), randomLightDiameter(), NUM_RAYS));
+				lights.add(new Light(mx, my, randomColor(), randomLightDiameter()));
 
 				return true;
 			}
@@ -143,18 +143,18 @@ public class GameScreen extends ScreenAdapter {
 
 		// TODO Properly pull from screen width / height
 		lights.add(new Light(Gdx.input.getX(), Gdx.graphics.getHeight() - Gdx.input.getY(),
-				Color.WHITE, randomLightDiameter(), NUM_RAYS ));
+				Color.WHITE, randomLightDiameter()));
 	}
 
 	private Color randomColor() {
 		float intensity = MathUtils.random() * 0.5f + 0.5f;
 
 		// TODO Improve randomness
-		return new Color(_game.randomizer.nextFloat(), _game.randomizer.nextFloat(), _game.randomizer.nextFloat(), intensity);
+		return new Color(MathUtils.random(), MathUtils.random(), MathUtils.random(), intensity);
 	}
 
 	private float randomLightDiameter() {
-		float diameter = MIN_DIAMETER + _game.randomizer.nextInt(187);
+		float diameter = MIN_DIAMETER + MathUtils.random(187);
 		return diameter > lightFboSize ? lightFboSize : diameter;
 	}
 
@@ -322,11 +322,11 @@ public class GameScreen extends ScreenAdapter {
 				shadowMapShader.setUniformf("lightDiameter", lightToRender.diameter);
 
 				// Reset our camera to the FBO size
-				_game.camera.setToOrtho(false, lightToRender.diameter, lightToRender.diameter);
+				_game.camera.setToOrtho(false, shadowMapFBO.getWidth(), shadowMapFBO.getHeight());
 				_game.batch.setProjectionMatrix(_game.camera.combined);
 
 				// Draw the capture Occluders texture to our 1D shadow map FBO
-				_game.batch.draw(occludersFBO.getColorBufferTexture(), 0, 0, lightToRender.diameter, lightToRender.diameter);
+				_game.batch.draw(occludersFBO.getColorBufferTexture(), 0, 0, shadowMapFBO.getWidth(), shadowMapFBO.getHeight());
 			}
 			// Flush batch
 			_game.batch.end();
@@ -365,7 +365,14 @@ public class GameScreen extends ScreenAdapter {
 		float diameter;
 		float rays;
 
-		public Light(float x, float y, Color color, float diameter, float rays) {
+		Light(float x, float y, Color color, float diameter) {
+			this.pos = new Vector2(x, y);
+			this.color = color;
+			this.diameter = diameter;
+			this.rays = NUM_RAYS;
+		}
+
+		Light(float x, float y, Color color, float diameter, float rays) {
 			this.pos = new Vector2(x, y);
 			this.color = color;
 			this.diameter = diameter;

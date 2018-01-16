@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
@@ -343,7 +344,7 @@ public class GameScreen extends ScreenAdapter {
 					map[y][x] = true;
 				}
 				// OR Determine if a tile should be randomly created at this cell (AND create the geometry
-				else if (_game.randomizer.nextInt(101) <= CHANCE_OF_TILE) {
+				else if (MathUtils.random(101) <= CHANCE_OF_TILE) {
 					map[y][x] = true;
 
 					// Create our body definition

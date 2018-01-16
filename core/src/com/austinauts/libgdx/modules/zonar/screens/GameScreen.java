@@ -2,7 +2,6 @@ package com.austinauts.libgdx.modules.zonar.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
 import com.austinauts.libgdx.common.utils.ShaderHelper;
-import com.austinauts.libgdx.common.utils.UserFloatFrameBuffer;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -11,8 +10,10 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.glutils.FloatFrameBuffer;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
@@ -112,8 +113,8 @@ public class GameScreen extends ScreenAdapter {
 	// but higher fill rate as well. Needs to be power of 2
 	private int numRaysEmitted = 512;
 
-	private UserFloatFrameBuffer occludersFBO;
-	private UserFloatFrameBuffer shadowMapFBO;
+	private FloatFrameBuffer occludersFBO;
+	private FloatFrameBuffer shadowMapFBO;
 
 	ShaderProgram shadowMapShader, shadowRenderShader;
 
@@ -339,11 +340,11 @@ public class GameScreen extends ScreenAdapter {
 		// -------------------------------------
 
 		// Set up Occluders FBO and texture that'll be generated from FBO
-		occludersFBO = new UserFloatFrameBuffer(lightDiameter, lightDiameter, false);
+		occludersFBO = new FloatFrameBuffer(lightDiameter, lightDiameter, false);
 		occludersFBO.getColorBufferTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
 		// Set up 1D Shadow map FBO and texture that'll be generated from FBO
-		shadowMapFBO = new UserFloatFrameBuffer(numRaysEmitted, 1, false);
+		shadowMapFBO = new FloatFrameBuffer(numRaysEmitted, 1, false);
 		occludersFBO.getColorBufferTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
 		// Ensure that not everything about a shader needs to be configured
@@ -519,8 +520,8 @@ public class GameScreen extends ScreenAdapter {
 	private Vector2 generateRandomPoint(int spawnStartCol, int spawnEndCol, int spawnStartRow, int spawnEndRow, boolean[][] mapToUse) {
 		Vector2 pos = new Vector2();
 
-		pos.x = spawnStartCol + _game.randomizer.nextInt((spawnEndCol + 1) - spawnStartCol);
-		pos.y = spawnStartRow + _game.randomizer.nextInt((spawnEndRow + 1) - spawnStartRow);
+		pos.x = spawnStartCol + MathUtils.random((spawnEndCol + 1) - spawnStartCol);
+		pos.y = spawnStartRow + MathUtils.random((spawnEndRow + 1) - spawnStartRow);
 
 		// Now, see if this is generated at a tile. If so, search for a clear spot
 		if (mapToUse[(int) pos.y][(int) pos.x]) {
@@ -644,7 +645,7 @@ public class GameScreen extends ScreenAdapter {
 					map[y][x] = true;
 				}
 				// OR Determine if a tile should be randomly created at this cell (AND create the geometry
-				else if (_game.randomizer.nextInt(101) <= CHANCE_OF_TILE) {
+				else if (MathUtils.random(101) <= CHANCE_OF_TILE) {
 					map[y][x] = true;
 				}
 				else {
