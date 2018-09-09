@@ -36,6 +36,7 @@ public class GameScreen extends ScreenAdapter {
 
 	private TiledMap tileMap;
 	private Array<Array<Vector2>> chambers;
+	private Array<Vector2> centralChamber;
 	private TiledMapRenderer tileMapRenderer;
 
 	// --------------------
@@ -158,7 +159,7 @@ public class GameScreen extends ScreenAdapter {
 					return true;
 				}
 				else if (key == Input.Keys.F) {
-					detectAndFillCaverns();
+					detectAndConnectChambers();
 					resetMapForRendering();
 					return true;
 				}
@@ -312,7 +313,7 @@ public class GameScreen extends ScreenAdapter {
 		tileMap.getLayers().add(layer);
 	}
 
-	private void detectAndFillCaverns() {
+	private void detectAndConnectChambers() {
 		// Take a snapshot of the map to work off of. We don't sample and write to the same map!
 		// TODO Needed some magic for this (Copying each array explicitly). Any better way to do this?
 		int indexOfFetchedLayer = tileMap.getLayers().getIndex(MAP_LAYER_NAME); // TODO How to track map layer name with more than one layer?
@@ -360,8 +361,25 @@ public class GameScreen extends ScreenAdapter {
 			}
 		}
 
+		// Determine the largest and thus "central" chamber
+		centralChamber = determineCentralChamber(chambers);
+
 		tileMap.getLayers().remove(indexOfFetchedLayer);
 		tileMap.getLayers().add(layer);
+	}
+
+	private Array<Vector2> determineCentralChamber(Array<Array<Vector2>> chambersToExamine) {
+		int largestChamberSizeSoFar = 0;
+		Array<Vector2> largestChamber = null;
+
+		for (Array<Vector2> chamber : chambersToExamine) {
+			if (chamber.size > largestChamberSizeSoFar) {
+				largestChamberSizeSoFar = chamber.size;
+				largestChamber = chamber;
+			}
+		}
+
+		return largestChamber;
 	}
 
 	private void performFloodFill(TiledMapTileLayer layer, int c, int r, int fillNumber, int tx, int ty) {
