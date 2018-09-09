@@ -150,6 +150,15 @@ public class GameScreen extends ScreenAdapter {
 					resetMapForRendering();
 					return true;
 				}
+				else if (key == Input.Keys.ESCAPE) {
+					numIterations = 0;
+
+					// Set up the map in random then calculated fashion
+					randomFillMap();
+					resetMapForRendering();
+
+					return true;
+				}
 
 				return false;
 			}
@@ -157,6 +166,11 @@ public class GameScreen extends ScreenAdapter {
 	}
 
 	private void randomFillMap() {
+		if (tileMap != null) {
+			tileMap.dispose();
+			tileMap = null;
+		}
+
 		// Create an empty tile map
 		tileMap = new TiledMap();
 
