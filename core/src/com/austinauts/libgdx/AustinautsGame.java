@@ -28,6 +28,7 @@ public class AustinautsGame extends Game {
 
 	// TODO May be a better way to do this
 	public final static String TILEMAP_SAMPLE_TILESET = "tilemaps/tiles.png";
+	public final static String TILEMAP_SAMPLE_PALETTE = "tilemaps/palette.png";
 	public final static String TILEMAP_SAMPLE_MAP = "tilemaps/test.tmx";
 
 	//public final static String MUSIC_TRACK = "music/retrace_the_circle.mp3";

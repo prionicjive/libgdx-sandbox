@@ -15,7 +15,9 @@ import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.TimeUtils;
 
 public class GameScreen extends ScreenAdapter {
@@ -33,6 +35,7 @@ public class GameScreen extends ScreenAdapter {
 	// --------------------
 
 	private TiledMap tileMap;
+	private Array<Array<Vector2>> chambers;
 	private TiledMapRenderer tileMapRenderer;
 
 	// --------------------
@@ -47,6 +50,7 @@ public class GameScreen extends ScreenAdapter {
 	// Variable for map generation
 	// ------------------------
 	private TextureRegion[][] splitTiles;
+	private TextureRegion[][] splitPalette;
 	private int numIterations;
 	private int numLayers;
 	private int numCols;
@@ -54,7 +58,7 @@ public class GameScreen extends ScreenAdapter {
 	private int tileWidth;
 	private int tileHeight;
 	private int wallsThreshold;
-	private final int CHANCE_OF_TILE = 40;
+	private final int CHANCE_OF_TILE = 45;
 	private final String MAP_LAYER_NAME = "layer-main";
 
 	public GameScreen(final AustinautsGame game) {
@@ -90,9 +94,12 @@ public class GameScreen extends ScreenAdapter {
 //		// Lastly, create our special tile map renderer!
 //		tileMapRenderer = new OrthogonalTiledMapRenderer(tileMap);
 
+		// Set up our chambers map
+		chambers = new Array<>();
+
 		// Divide up the individual sprites in the sprite sheet
 		splitTiles = TextureRegion.split(_game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_TILESET, Texture.class), BLOCK_SIZE, BLOCK_SIZE);
-
+		splitPalette = TextureRegion.split(_game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_PALETTE, Texture.class), BLOCK_SIZE, BLOCK_SIZE);
 		// Set up the map in random then calculated fashion
 		randomFillMap();
 		resetMapForRendering();
@@ -150,6 +157,11 @@ public class GameScreen extends ScreenAdapter {
 					resetMapForRendering();
 					return true;
 				}
+				else if (key == Input.Keys.F) {
+					detectAndFillCaverns();
+					resetMapForRendering();
+					return true;
+				}
 				else if (key == Input.Keys.ESCAPE) {
 					numIterations = 0;
 
@@ -164,6 +176,15 @@ public class GameScreen extends ScreenAdapter {
 			}
 		});
 	}
+
+
+
+
+
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
 
 	private void randomFillMap() {
 		if (tileMap != null) {
@@ -241,7 +262,6 @@ public class GameScreen extends ScreenAdapter {
 			}
 		}
 
-
 		// Iterate through all tiles and do the magic!
 		// TODO Better way other than this to not take into account the first and last row and column
 		for (int c = 1; c < numCols - 1; c++) {
@@ -292,6 +312,108 @@ public class GameScreen extends ScreenAdapter {
 		tileMap.getLayers().add(layer);
 	}
 
+	private void detectAndFillCaverns() {
+		// Take a snapshot of the map to work off of. We don't sample and write to the same map!
+		// TODO Needed some magic for this (Copying each array explicitly). Any better way to do this?
+		int indexOfFetchedLayer = tileMap.getLayers().getIndex(MAP_LAYER_NAME); // TODO How to track map layer name with more than one layer?
+		TiledMapTileLayer layer = (TiledMapTileLayer)tileMap.getLayers().get(indexOfFetchedLayer);
+
+		// Make the snapshot
+		TiledMapTileLayer layerSnapshot = new TiledMapTileLayer(numCols, numRows, tileWidth, tileHeight);
+
+		for (int x = 0; x < numCols; x++) {
+			for (int y = 0; y < numRows; y++) {
+				TiledMapTileLayer.Cell oldCell = layer.getCell(x, y);
+				TiledMapTileLayer.Cell newCell = oldCell != null ? new TiledMapTileLayer.Cell() : null;
+
+				layerSnapshot.setCell(x, y, newCell);
+			}
+		}
+
+		// ~~~~~~~~~~~~
+
+		// Clear out any chamber data we have
+		for (Array<Vector2> chamber: chambers) {
+			chamber.clear();
+		}
+		chambers.clear();
+
+		// Step through all empty tiles and determine what unique "chamber" they are a part of
+		int fillNumber = 0; // Would be used to uniquely identify the specific cavern
+		for (int c = 1; c < numCols - 1; c++) {
+			for (int r = 1; r < numRows - 1; r++) {
+				// If this tile is empty...
+				if(layerSnapshot.getCell(c, r) == null) {
+					// Construct a new chamber
+					chambers.add(new Array<>());
+
+					// TODO Possibly determine a random sprite index to pull from
+					int ty = 0;
+					int tx = fillNumber % splitPalette[ty].length;
+
+					// Perform the actual flood fill (Recursively)
+					performFloodFill(layer, c, r, fillNumber, tx, ty);
+
+					// Bump the fill number to make the next discovered chamber unique
+					fillNumber++;
+				}
+			}
+		}
+
+		tileMap.getLayers().remove(indexOfFetchedLayer);
+		tileMap.getLayers().add(layer);
+	}
+
+	private void performFloodFill(TiledMapTileLayer layer, int c, int r, int fillNumber, int tx, int ty) {
+		/*
+			From Wikipedia on flood fill...
+			1. If the color of node is not equal to target-color, return.
+            2. Set the color of node to replacement-color.
+            3. Perform Flood-fill (one step to the west of node, target-color, replacement-color).
+                Perform Flood-fill (one step to the east of node, target-color, replacement-color).
+                Perform Flood-fill (one step to the north of node, target-color, replacement-color).
+                Perform Flood-fill (one step to the south of node, target-color, replacement-color).
+            4. Return.
+        */
+		TiledMapTileLayer.Cell cell = layer.getCell(c, r);
+
+		// Don't go any further if this is actually a tile
+		if (cell != null) {
+			return;
+		}
+
+		// Create the cell and set its tile properly
+		cell = new TiledMapTileLayer.Cell();
+		StaticTiledMapTile tile = new StaticTiledMapTile(splitPalette[ty][tx]);
+		tile.getProperties().put("fillNumber", fillNumber);
+		cell.setTile(tile);
+
+		// Set this cell in the layer
+		layer.setCell(c, r, cell);
+
+		// NOW... <breathe>... add this coordinate to the chamber
+		chambers.get(chambers.size - 1).add(new Vector2(c, r));
+
+		// Lastly, check WESN and recursively fill
+		if (c > 1) {
+			performFloodFill(layer, c - 1, r, fillNumber, tx, ty);
+		}
+
+		if (c < numCols - 2) {
+			performFloodFill(layer, c + 1, r, fillNumber, tx, ty);
+		}
+
+		if (r < numRows - 2) {
+			performFloodFill(layer, c, r + 1, fillNumber, tx, ty);
+		}
+
+		if (r > 1) {
+			performFloodFill(layer, c, r - 1, fillNumber, tx, ty);
+		}
+
+
+	}
+
 	private int getNeighborWalls(TiledMapTileLayer layerSnapshot, int col, int row, int scopeX, int scopeY) {
 		int startX = col - scopeX;
 		int startY = row - scopeY;
@@ -336,7 +458,16 @@ public class GameScreen extends ScreenAdapter {
 		return false;
 	}
 
-	// -----------------------------------------------------------------------
+
+
+
+
+
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
 
 	private void checkTimer() {
 		// Capture the total time since the beginning of play
