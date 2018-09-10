@@ -35,8 +35,11 @@ public class GameScreen extends ScreenAdapter {
 	// --------------------
 
 	private TiledMap tileMap;
+	private boolean[][] procGenMap;
+	private boolean[][] procGenMapSnapshot;
 	private Array<Array<Vector2>> chambers;
 	private Array<Vector2> centralChamber;
+	private boolean allChambersShouldConnect = true;
 	private TiledMapRenderer tileMapRenderer;
 
 	// --------------------
@@ -58,9 +61,17 @@ public class GameScreen extends ScreenAdapter {
 	private int numRows;
 	private int tileWidth;
 	private int tileHeight;
-	private int wallsThreshold;
-	private final int CHANCE_OF_TILE = 45;
 	private final String MAP_LAYER_NAME = "layer-main";
+
+	private final int initialChanceOfTile = 45;
+	private final int birthThreshold = 5;
+	private final int surviveThreshold = 4;
+	private final int largeSpaceThreshold = 2;
+	private final int numCarvingPasses = 4;
+	private final int numSmoothingPasses = 3;
+	private final int neighborhoodScope = 1;
+	private final int largeNeighborhoodScope = 2;
+
 
 	public GameScreen(final AustinautsGame game) {
 		_game = game;
@@ -83,7 +94,6 @@ public class GameScreen extends ScreenAdapter {
 		numRows = _game.masterWorldHeight / BLOCK_SIZE;
 		tileWidth = BLOCK_SIZE;
 		tileHeight = BLOCK_SIZE;
-		wallsThreshold = 4;
 
 		// -------------------------------------
 		// Set up the game entities
@@ -95,15 +105,17 @@ public class GameScreen extends ScreenAdapter {
 //		// Lastly, create our special tile map renderer!
 //		tileMapRenderer = new OrthogonalTiledMapRenderer(tileMap);
 
+
 		// Set up our chambers map
 		chambers = new Array<>();
 
 		// Divide up the individual sprites in the sprite sheet
 		splitTiles = TextureRegion.split(_game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_TILESET, Texture.class), BLOCK_SIZE, BLOCK_SIZE);
 		splitPalette = TextureRegion.split(_game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_PALETTE, Texture.class), BLOCK_SIZE, BLOCK_SIZE);
-		// Set up the map in random then calculated fashion
-		randomFillMap();
-		resetMapForRendering();
+
+		// Initialize and generate a new level
+		initializeTileMap();
+		generateNewLevel();
 
 		// Now, before we get this going, set up our input handling
 		// TODO Can we streamline this? Maybe making a default game screen?
@@ -154,21 +166,17 @@ public class GameScreen extends ScreenAdapter {
 				if (key == Input.Keys.SPACE) {
 					// TODO Do next generation of cellular automaton
 					numIterations++;
-					iterateMap();
-					resetMapForRendering();
+					iterateMap(procGenMap, procGenMapSnapshot, false);;
+					resetMapForRendering(procGenMap);
 					return true;
 				}
 				else if (key == Input.Keys.F) {
-					detectAndConnectChambers();
-					resetMapForRendering();
+					detectAndConnectChambers(procGenMap);
+					resetMapForRendering(procGenMap);
 					return true;
 				}
 				else if (key == Input.Keys.ESCAPE) {
-					numIterations = 0;
-
-					// Set up the map in random then calculated fashion
-					randomFillMap();
-					resetMapForRendering();
+					generateNewLevel();
 
 					return true;
 				}
@@ -178,16 +186,54 @@ public class GameScreen extends ScreenAdapter {
 		});
 	}
 
-
-
-
-
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+	private void initializeTileMap() {
+		tileMap = new TiledMap();
+		procGenMap = new boolean[numRows][numCols];
+		procGenMapSnapshot = new boolean[numRows][numCols];
 
+		// Having to flip the y to match world contents
+		for (int y = numRows - 1; y >= 0; y--) {
+			for (int x = 0; x < numCols; x++) {
+				// Initialize the current tile
+				procGenMap[y][x] = false;
+				procGenMapSnapshot[y][x] = false;
+			}
+		}
+	}
 
+	private void generateNewLevel() {
+		// Reset the number of iterations
+		numIterations = 0;
 
-	private void randomFillMap() {
+		// Use procedural generation to initial smatter the level with tiles
+		performRandomFillOfTileMap(procGenMap);
+
+		// Generate a tilemap that can be used
+		resetMapForRendering(procGenMap);
+	}
+
+	private void performRandomFillOfTileMap(boolean[][] mapToFill) {
+		// Having to flip the y to match world contents
+		for (int y = numRows - 1; y >= 0; y--) {
+			for (int x = 0; x < numCols; x++) {
+				// Add a tile at the outer rows and edges
+				if (x == 0 || y == 0 || x == numCols - 1 || y == numRows - 1) {
+					mapToFill[y][x] = true;
+				}
+				// OR determine if a tile should be randomly created at this cell
+				else if (MathUtils.random(1, 100) <= initialChanceOfTile) {
+					mapToFill[y][x] = true;
+				}
+				else {
+					mapToFill[y][x] = false;
+				}
+			}
+		}
+	}
+
+	private void resetMapForRendering(boolean[][] mapToRef) {
 		if (tileMap != null) {
 			tileMap.dispose();
 			tileMap = null;
@@ -211,10 +257,7 @@ public class GameScreen extends ScreenAdapter {
 
 			for (int x = 0; x < numCols; x++) {
 				for (int y = 0; y < numRows; y++) {
-					// Add a tile at the outer rows and edges
-					// OR Determine if a tile should be randomly created at this cell
-					if ((x == 0 || y == 0 || x == numCols - 1 || y == numRows - 1) ||
-						(MathUtils.random(101) <= CHANCE_OF_TILE)){
+					if (mapToRef[y][x]) {
 						// Create a cell and set a tile to it
 						// NOTE: Think of the cell as containing and determining how to render the Tile (Really just the image data)
 						TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();
@@ -237,99 +280,123 @@ public class GameScreen extends ScreenAdapter {
 		tileMapRenderer = new OrthogonalTiledMapRenderer(tileMap);
 	}
 
-	private void resetMapForRendering() {
-
-	}
-
-	private void iterateMap() {
-		// TODO Possibly determine a random sprite index to pull from
-		int ty = 4; //(int)(Math.random() * splitTiles.length);
-		int tx = 1; //(int)(Math.random() * splitTiles[ty].length);
-
-		// Take a snapshot of the map to work off of. We don't sample and write to the same map!
-		// TODO Needed some magic for this (Copying each array explicitly). Any better way to do this?
-		int indexOfFetchedLayer = tileMap.getLayers().getIndex(MAP_LAYER_NAME); // TODO How to track map layer name with more than one layer?
-		TiledMapTileLayer layer = (TiledMapTileLayer)tileMap.getLayers().get(indexOfFetchedLayer);
-
-		// Make the snapshot
-		TiledMapTileLayer layerSnapshot = new TiledMapTileLayer(numCols, numRows, tileWidth, tileHeight);
-
-		for (int x = 0; x < numCols; x++) {
-			for (int y = 0; y < numRows; y++) {
-				TiledMapTileLayer.Cell oldCell = layer.getCell(x, y);
-				TiledMapTileLayer.Cell newCell = oldCell != null ? new TiledMapTileLayer.Cell() : null;
-
-				layerSnapshot.setCell(x, y, newCell);
+	private void iterateMap(boolean[][] mapToIterate, boolean[][] mapToUseAsSnapshot, boolean doLargeNeighborhoodCheck) {
+		// Set the snapshot's tiles to mirror that of the actual tileMap's tiles
+		// TODO Can this be combine with other iteration so the whole map doesn't have to be walked multiple times
+		for (int y = numRows - 1; y >= 0; y--) {
+			for (int x = 0; x < numCols; x++) {
+				mapToUseAsSnapshot[y][x] = mapToIterate[y][x];
 			}
 		}
-
+	
 		// Iterate through all tiles and do the magic!
 		// TODO Better way other than this to not take into account the first and last row and column
-		for (int c = 1; c < numCols - 1; c++) {
-			for (int r = 1; r < numRows - 1; r++) {
-				int numNeighborWalls = getNeighborWalls(layerSnapshot, c, r, 1, 1);
+		for (int r = numRows - 2; r >= 1; r--) {
+			for (int c = 1; c < numCols - 1; c++) {
+				int numTilesInNeighborhood = getNeighborTiles(mapToUseAsSnapshot, c, r, neighborhoodScope);
 
-				// If this tile is a wall...
-				if(layerSnapshot.getCell(c, r) != null) {
-					// If at least WALLS_THRESHOLD are neighboring, keep this a wall
-					if (numNeighborWalls >= wallsThreshold) {
-						TiledMapTileLayer.Cell cell = layerSnapshot.getCell(c, r);
-
-						// Create cell if we don't have it
-						if (cell == null) {
-							cell = new TiledMapTileLayer.Cell();
-						}
-						cell.setTile(new StaticTiledMapTile(splitTiles[ty][tx]));
-
-						// Set this cell in the layer
-						layer.setCell(c, r, cell);
+				// If this tile is a tile...
+				if(mapToUseAsSnapshot[r][c]) {
+					// If at least the surviveThreshold of neighbors are tiles, it stays alive
+					if (numTilesInNeighborhood >= surviveThreshold) {
+						mapToIterate[r][c] = true;
 					}
+					// Otherwise, kill it
 					else {
-						layer.setCell(c, r,null);
+						mapToIterate[r][c] = false;
 					}
 				}
-				// If it is not a wall, make it a wall if there are WALLS_THRESHOLD walls neighboring
+				// If at least the birthThreshold of neighbors are tiles OR there are barely any tiles around in the larger neighborhood, give this tile the gift of life
 				else {
-					if(numNeighborWalls > wallsThreshold) {
-						TiledMapTileLayer.Cell cell = layerSnapshot.getCell(c, r);
+					int numTilesInLargeNeighborhood = getNeighborTiles(mapToUseAsSnapshot, c, r, largeNeighborhoodScope);
 
-						// Create cell if we don't have it
-						if (cell == null) {
-							cell = new TiledMapTileLayer.Cell();
-						}
-						cell.setTile(new StaticTiledMapTile(splitTiles[ty][tx]));
-
-						// Set this cell in the layer
-						layer.setCell(c, r, cell);
+					if (numTilesInNeighborhood >= birthThreshold || (doLargeNeighborhoodCheck && numTilesInLargeNeighborhood <= largeSpaceThreshold)) {
+						mapToIterate[r][c] = true;
 					}
+					// Otherwise, it stays dead
 					else {
-						layer.setCell(c, r,null);
+						mapToIterate[r][c] = false;
 					}
 				}
 			}
 		}
-
-		tileMap.getLayers().remove(indexOfFetchedLayer);
-		tileMap.getLayers().add(layer);
 	}
 
-	private void detectAndConnectChambers() {
-		// Take a snapshot of the map to work off of. We don't sample and write to the same map!
-		// TODO Needed some magic for this (Copying each array explicitly). Any better way to do this?
-		int indexOfFetchedLayer = tileMap.getLayers().getIndex(MAP_LAYER_NAME); // TODO How to track map layer name with more than one layer?
-		TiledMapTileLayer layer = (TiledMapTileLayer)tileMap.getLayers().get(indexOfFetchedLayer);
+	private int getNeighborTiles(boolean[][] mapSnapshot, int col, int row, int scope) {
+		int startX = col - scope;
+		int startY = row - scope;
+		int endX = col + scope;
+		int endY = row + scope;
 
-		// Make the snapshot
-		TiledMapTileLayer layerSnapshot = new TiledMapTileLayer(numCols, numRows, tileWidth, tileHeight);
+		int tileCounter = 0;
 
-		for (int x = 0; x < numCols; x++) {
-			for (int y = 0; y < numRows; y++) {
-				TiledMapTileLayer.Cell oldCell = layer.getCell(x, y);
-				TiledMapTileLayer.Cell newCell = oldCell != null ? new TiledMapTileLayer.Cell() : null;
-
-				layerSnapshot.setCell(x, y, newCell);
+		for(int iY = startY; iY <= endY; iY++) {
+			for(int iX = startX; iX <= endX; iX++) {
+				if(!(iX==col && iY==row)) {
+					if (isTile(mapSnapshot, iX, iY)) {
+						tileCounter++;
+					}
+				}
 			}
 		}
+		return tileCounter;
+	}
+
+	private int getNeighborTilesNSEW(boolean[][] mapSnapshot, int col, int row) {
+		int tileCounter = 0;
+
+		// North
+		if (isTile(mapSnapshot, col, row + 1)) {
+			tileCounter++;
+		}
+
+		// South
+		if (isTile(mapSnapshot, col, row - 1)) {
+			tileCounter++;
+		}
+
+		// East
+		if (isTile(mapSnapshot, col + 1, row)) {
+			tileCounter++;
+		}
+
+		// West
+		if (isTile(mapSnapshot, col - 1, row)) {
+			tileCounter++;
+		}
+
+		return tileCounter;
+	}
+
+	private boolean isTile(boolean[][] mapSnapshot, int col, int row) {
+		// Consider out-of-bound a tile
+		if (isOutOfBounds(col, row)) {
+			return true;
+		}
+		else if(mapSnapshot[row][col]) {
+			return true;
+		}
+
+		return false;
+	}
+
+	private boolean isOutOfBounds(int col, int row){
+		// The edges are considered out of bounds
+		if( col <= 0 || row <= 0) {
+			return true;
+		}
+		else if( col >= numCols - 1 || row >= numRows - 1) {
+			return true;
+		}
+
+		return false;
+	}
+
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	private void detectAndConnectChambers(boolean[][] mapToRef) {
+		int indexOfFetchedLayer = tileMap.getLayers().getIndex(MAP_LAYER_NAME);
+		TiledMapTileLayer layer = (TiledMapTileLayer)tileMap.getLayers().get(indexOfFetchedLayer);
 
 		// ~~~~~~~~~~~~
 
@@ -344,7 +411,7 @@ public class GameScreen extends ScreenAdapter {
 		for (int c = 1; c < numCols - 1; c++) {
 			for (int r = 1; r < numRows - 1; r++) {
 				// If this tile is empty...
-				if(layerSnapshot.getCell(c, r) == null) {
+				if(layer.getCell(c, r) == null) {
 					// Construct a new chamber
 					chambers.add(new Array<>());
 
@@ -361,14 +428,16 @@ public class GameScreen extends ScreenAdapter {
 			}
 		}
 
-		// Determine the largest and thus "central" chamber
-		centralChamber = determineCentralChamber(chambers);
+		if (allChambersShouldConnect) {
+			// Determine the largest and thus "central" chamber
+			centralChamber = determineLargestChamber(chambers);
 
-		tileMap.getLayers().remove(indexOfFetchedLayer);
-		tileMap.getLayers().add(layer);
+			// Connect all chambers to the central chamber
+			connectAllChambers(chambers, centralChamber);
+		}
 	}
 
-	private Array<Vector2> determineCentralChamber(Array<Array<Vector2>> chambersToExamine) {
+	private Array<Vector2> determineLargestChamber(Array<Array<Vector2>> chambersToExamine) {
 		int largestChamberSizeSoFar = 0;
 		Array<Vector2> largestChamber = null;
 
@@ -412,80 +481,108 @@ public class GameScreen extends ScreenAdapter {
 		// NOW... <breathe>... add this coordinate to the chamber
 		chambers.get(chambers.size - 1).add(new Vector2(c, r));
 
-		// Lastly, check WESN and recursively fill
-		if (c > 1) {
-			performFloodFill(layer, c - 1, r, fillNumber, tx, ty);
-		}
+		// Lastly, check NSEW and recursively fill
 
-		if (c < numCols - 2) {
-			performFloodFill(layer, c + 1, r, fillNumber, tx, ty);
-		}
-
+		// North
 		if (r < numRows - 2) {
 			performFloodFill(layer, c, r + 1, fillNumber, tx, ty);
 		}
 
+		// South
 		if (r > 1) {
 			performFloodFill(layer, c, r - 1, fillNumber, tx, ty);
 		}
 
+		// East
+		if (c < numCols - 2) {
+			performFloodFill(layer, c + 1, r, fillNumber, tx, ty);
+		}
 
+		// West
+		if (c > 1) {
+			performFloodFill(layer, c - 1, r, fillNumber, tx, ty);
+		}
 	}
 
-	private int getNeighborWalls(TiledMapTileLayer layerSnapshot, int col, int row, int scopeX, int scopeY) {
-		int startX = col - scopeX;
-		int startY = row - scopeY;
-		int endX = col + scopeX;
-		int endY = row + scopeY;
+	private void connectAllChambers(Array<Array<Vector2>> chambersToConnect) {
+		Array<Vector2> largestChamber = determineLargestChamber(chambers);
+		connectAllChambers(chambersToConnect, largestChamber);
+	}
 
-		int wallCounter = 0;
-
-		for(int iY = startY; iY <= endY; iY++) {
-			for(int iX = startX; iX <= endX; iX++) {
-				if(!(iX==col && iY==row)) {
-					if (isWall(layerSnapshot, iX, iY)) {
-						wallCounter++;
-					}
-				}
+	private void connectAllChambers(Array<Array<Vector2>> chambersToConnect, Array<Vector2> largestChamber) {
+		for (Array<Vector2> chamber : chambersToConnect) {
+			// If the current chamber is really the largest chamber, skip it
+			if (chamber == largestChamber) {
+				continue;
 			}
+
+			// Determine start coordinate (Random coordinate in this chamber)
+			Vector2 startCoord = chamber.get(MathUtils.random(chamber.size - 1));
+
+			// Determine goal coordinate (Random coordinate in the largest chamber)
+			Vector2 goalCoord = chamber.get(MathUtils.random(chamber.size - 1));
+
+			// Using A* pathfinding, create a path between the start and goal coordinates
+			createAStarPath(startCoord, goalCoord);
 		}
-		return wallCounter;
 	}
 
-	private boolean isWall(TiledMapTileLayer layerSnapshot, int col, int row) {
-		// Consider out-of-bound a wall
-		if (isOutOfBounds(col, row)) {
-			return true;
-		}
-		else if(layerSnapshot.getCell(col, row) != null) {
-			return true;
-		}
+	// `````````````````````````````````````
 
-		return false;
+	private void createAStarPath(Vector2 startCoord, Vector2 goalCoord) {
+//		// The set of nodes already evaluated
+//		Array<Vector2> closedSet = new Array<>();
+//
+//		// The set of currently discovered nodes that are not evaluated yet.
+//		// Initially, only the start node is known.
+//		Array<Vector2> openSet = new Array<>();
+//		openSet.add(startCoord);
+
+//		// For each node, which node it can most efficiently be reached from.
+//		// If a node can be reached from many nodes, cameFrom will eventually contain the
+//		// most efficient previous step.
+//		Vector2[] cameFrom = new Vector2[numRows * numCols];
+
+//		// For each node, the cost of getting from the start node to that node.
+//		gScore := map with default value of Infinity
+//
+//		// The cost of going from start to start is zero.
+//		gScore[start] := 0
+//
+//		// For each node, the total cost of getting from the start node to the goal
+//		// by passing by that node. That value is partly known, partly heuristic.
+//		fScore := map with default value of Infinity
+//
+//		// For the first node, that value is completely heuristic.
+//		fScore[start] := heuristic_cost_estimate(start, goal)
+//
+//		while openSet is not empty
+//		current := the node in openSet having the lowest fScore[] value
+//		if current = goal
+//		return reconstruct_path(cameFrom, current)
+//
+//		openSet.Remove(current)
+//		closedSet.Add(current)
+//
+//		for each neighbor of current
+//		if neighbor in closedSet
+//		continue		// Ignore the neighbor which is already evaluated.
+//
+//				// The distance from start to a neighbor
+//				tentative_gScore := gScore[current] + dist_between(current, neighbor)
+//
+//		if neighbor not in openSet	// Discover a new node
+//		openSet.Add(neighbor)
+//            else if tentative_gScore >= gScore[neighbor]
+//		continue		// This is not a better path.
+//
+//				// This path is the best until now. Record it!
+//				cameFrom[neighbor] := current
+//		gScore[neighbor] := tentative_gScore
+//		fScore[neighbor] := gScore[neighbor] + heuristic_cost_estimate(neighbor, goal)
 	}
 
-	private boolean isOutOfBounds(int col, int row){
-		// The edges are considered out of bounds
-		if( col <= 0 || row <= 0) {
-			return true;
-		}
-		else if( col >= numCols - 1 || row >= numRows - 1) {
-			return true;
-		}
-
-		return false;
-	}
-
-
-
-
-
-
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
-
+	// ````````````````````````````````
 
 	private void checkTimer() {
 		// Capture the total time since the beginning of play
