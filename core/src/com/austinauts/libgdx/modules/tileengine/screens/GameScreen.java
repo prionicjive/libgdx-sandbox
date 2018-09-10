@@ -37,6 +37,8 @@ public class GameScreen extends ScreenAdapter {
 	private TiledMap tileMap;
 	private boolean[][] procGenMap;
 	private boolean[][] procGenMapSnapshot;
+	private short[][] floodFillMap;
+
 	private Array<Array<Vector2>> chambers;
 	private Array<Vector2> centralChamber;
 	private boolean allChambersShouldConnect = true;
@@ -164,14 +166,12 @@ public class GameScreen extends ScreenAdapter {
 		Gdx.input.setInputProcessor(new InputAdapter() {
 			public boolean keyDown(int key) {
 				if (key == Input.Keys.SPACE) {
-					// TODO Do next generation of cellular automaton
-					numIterations++;
 					iterateMap(procGenMap, procGenMapSnapshot, false);;
 					resetMapForRendering(procGenMap);
 					return true;
 				}
 				else if (key == Input.Keys.F) {
-					detectAndConnectChambers(procGenMap);
+					detectAndConnectChambers(procGenMap, floodFillMap);
 					resetMapForRendering(procGenMap);
 					return true;
 				}
@@ -192,6 +192,7 @@ public class GameScreen extends ScreenAdapter {
 		tileMap = new TiledMap();
 		procGenMap = new boolean[numRows][numCols];
 		procGenMapSnapshot = new boolean[numRows][numCols];
+		floodFillMap = new short[numRows][numCols];
 
 		// Having to flip the y to match world contents
 		for (int y = numRows - 1; y >= 0; y--) {
@@ -199,6 +200,7 @@ public class GameScreen extends ScreenAdapter {
 				// Initialize the current tile
 				procGenMap[y][x] = false;
 				procGenMapSnapshot[y][x] = false;
+				floodFillMap[y][x] = 0;
 			}
 		}
 	}
@@ -221,13 +223,16 @@ public class GameScreen extends ScreenAdapter {
 				// Add a tile at the outer rows and edges
 				if (x == 0 || y == 0 || x == numCols - 1 || y == numRows - 1) {
 					mapToFill[y][x] = true;
+					floodFillMap[y][x] = -1;
 				}
 				// OR determine if a tile should be randomly created at this cell
 				else if (MathUtils.random(1, 100) <= initialChanceOfTile) {
 					mapToFill[y][x] = true;
+					floodFillMap[y][x] = -1;
 				}
 				else {
 					mapToFill[y][x] = false;
+					floodFillMap[y][x] = 0;
 				}
 			}
 		}
@@ -267,7 +272,19 @@ public class GameScreen extends ScreenAdapter {
 						layer.setCell(x, y, cell);
 					}
 					else {
-						layer.setCell(x, y, null);
+						// Create a cell and set a palette tile to it
+						// NOTE: Think of the cell as containing and determining how to render the Tile (Really just the image data)
+						TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();
+
+						// SHow a palette color only if we have one to use
+						int palettePosition = (floodFillMap[y][x] - 1) % 16;
+						if (palettePosition >= 0) {
+							cell.setTile(new StaticTiledMapTile(splitPalette[0][palettePosition]));
+							layer.setCell(x, y, cell);
+						}
+						else {
+							layer.setCell(x, y, null);
+						}
 					}
 				}
 			}
@@ -300,10 +317,12 @@ public class GameScreen extends ScreenAdapter {
 					// If at least the surviveThreshold of neighbors are tiles, it stays alive
 					if (numTilesInNeighborhood >= surviveThreshold) {
 						mapToIterate[r][c] = true;
+						floodFillMap[r][c] = -1;
 					}
 					// Otherwise, kill it
 					else {
 						mapToIterate[r][c] = false;
+						floodFillMap[r][c] = 0;
 					}
 				}
 				// If at least the birthThreshold of neighbors are tiles OR there are barely any tiles around in the larger neighborhood, give this tile the gift of life
@@ -312,14 +331,18 @@ public class GameScreen extends ScreenAdapter {
 
 					if (numTilesInNeighborhood >= birthThreshold || (doLargeNeighborhoodCheck && numTilesInLargeNeighborhood <= largeSpaceThreshold)) {
 						mapToIterate[r][c] = true;
+						floodFillMap[r][c] = -1;
 					}
 					// Otherwise, it stays dead
 					else {
 						mapToIterate[r][c] = false;
+						floodFillMap[r][c] = 0;
 					}
 				}
 			}
 		}
+
+		numIterations++;
 	}
 
 	private int getNeighborTiles(boolean[][] mapSnapshot, int col, int row, int scope) {
@@ -394,12 +417,7 @@ public class GameScreen extends ScreenAdapter {
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	private void detectAndConnectChambers(boolean[][] mapToRef) {
-		int indexOfFetchedLayer = tileMap.getLayers().getIndex(MAP_LAYER_NAME);
-		TiledMapTileLayer layer = (TiledMapTileLayer)tileMap.getLayers().get(indexOfFetchedLayer);
-
-		// ~~~~~~~~~~~~
-
+	private void detectAndConnectChambers(boolean[][] mapToRef, short[][] mapForFloodFill) {
 		// Clear out any chamber data we have
 		for (Array<Vector2> chamber: chambers) {
 			chamber.clear();
@@ -407,20 +425,16 @@ public class GameScreen extends ScreenAdapter {
 		chambers.clear();
 
 		// Step through all empty tiles and determine what unique "chamber" they are a part of
-		int fillNumber = 0; // Would be used to uniquely identify the specific cavern
+		short fillNumber = 1; // Would be used to uniquely identify the specific cavern
 		for (int c = 1; c < numCols - 1; c++) {
 			for (int r = 1; r < numRows - 1; r++) {
 				// If this tile is empty...
-				if(layer.getCell(c, r) == null) {
+				if(!mapToRef[r][c] && mapForFloodFill[r][c] == 0) {
 					// Construct a new chamber
 					chambers.add(new Array<>());
 
-					// TODO Possibly determine a random sprite index to pull from
-					int ty = 0;
-					int tx = fillNumber % splitPalette[ty].length;
-
 					// Perform the actual flood fill (Recursively)
-					performFloodFill(layer, c, r, fillNumber, tx, ty);
+					performFloodFill(mapToRef, mapForFloodFill, c, r, fillNumber);
 
 					// Bump the fill number to make the next discovered chamber unique
 					fillNumber++;
@@ -433,7 +447,7 @@ public class GameScreen extends ScreenAdapter {
 			centralChamber = determineLargestChamber(chambers);
 
 			// Connect all chambers to the central chamber
-			connectAllChambers(chambers, centralChamber);
+//			connectAllChambers(chambers, centralChamber);
 		}
 	}
 
@@ -451,7 +465,7 @@ public class GameScreen extends ScreenAdapter {
 		return largestChamber;
 	}
 
-	private void performFloodFill(TiledMapTileLayer layer, int c, int r, int fillNumber, int tx, int ty) {
+	private void performFloodFill(boolean[][] mapToRef, short[][] mapForFloodFill, int c, int r, short fillNumber) {
 		/*
 			From Wikipedia on flood fill...
 			1. If the color of node is not equal to target-color, return.
@@ -462,46 +476,40 @@ public class GameScreen extends ScreenAdapter {
                 Perform Flood-fill (one step to the south of node, target-color, replacement-color).
             4. Return.
         */
-		TiledMapTileLayer.Cell cell = layer.getCell(c, r);
 
 		// Don't go any further if this is actually a tile
-		if (cell != null) {
+		if (mapForFloodFill[r][c] != 0) {
 			return;
 		}
 
-		// Create the cell and set its tile properly
-		cell = new TiledMapTileLayer.Cell();
-		StaticTiledMapTile tile = new StaticTiledMapTile(splitPalette[ty][tx]);
-		tile.getProperties().put("fillNumber", fillNumber);
-		cell.setTile(tile);
-
-		// Set this cell in the layer
-		layer.setCell(c, r, cell);
+		// Set a fillNumber in the flood fill map
+		mapForFloodFill[r][c] = fillNumber;
 
 		// NOW... <breathe>... add this coordinate to the chamber
 		chambers.get(chambers.size - 1).add(new Vector2(c, r));
 
 		// Lastly, check NSEW and recursively fill
 
-		// North
-		if (r < numRows - 2) {
-			performFloodFill(layer, c, r + 1, fillNumber, tx, ty);
-		}
-
-		// South
-		if (r > 1) {
-			performFloodFill(layer, c, r - 1, fillNumber, tx, ty);
+		// West
+		if (c > 1) {
+			performFloodFill(mapToRef, mapForFloodFill, c - 1, r, fillNumber);
 		}
 
 		// East
 		if (c < numCols - 2) {
-			performFloodFill(layer, c + 1, r, fillNumber, tx, ty);
+			performFloodFill(mapToRef, mapForFloodFill, c + 1, r, fillNumber);
 		}
 
-		// West
-		if (c > 1) {
-			performFloodFill(layer, c - 1, r, fillNumber, tx, ty);
+		// North
+		if (r < numRows - 2) {
+			performFloodFill(mapToRef, mapForFloodFill, c, r + 1, fillNumber);
 		}
+
+		// South
+		if (r > 1) {
+			performFloodFill(mapToRef, mapForFloodFill, c, r - 1, fillNumber);
+		}
+
 	}
 
 	private void connectAllChambers(Array<Array<Vector2>> chambersToConnect) {
