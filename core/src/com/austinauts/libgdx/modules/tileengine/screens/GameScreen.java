@@ -172,16 +172,25 @@ public class GameScreen extends ScreenAdapter {
 					resetMapForRendering(procGenMap, false);
 					return true;
 				}
+				// Show each chamber with a unique color
 				else if (key == Input.Keys.F) {
 					detectAndConnectChambers(procGenMap, floodFillMap, false);
 					resetMapForRendering(procGenMap, true);
 					return true;
 				}
+				// Connect all chambers
 				else if (key == Input.Keys.P) {
 					detectAndConnectChambers(procGenMap, floodFillMap, true);
 					resetMapForRendering(procGenMap, false);
 					return true;
 				}
+				// Connect all chambers
+				else if (key == Input.Keys.S) {
+					detectAndConnectChambers(procGenMap, floodFillMap, true);
+					resetMapForRendering(procGenMap, false);
+					return true;
+				}
+				// Generate a new level with just a simple smattering of tiles
 				else if (key == Input.Keys.ESCAPE) {
 					generateNewLevel();
 
@@ -436,17 +445,31 @@ public class GameScreen extends ScreenAdapter {
 		}
 		chambers.clear();
 
+		// TODO Pull out elsewhere
+		for (int c = 1; c < numCols - 1; c++) {
+			for (int r = 1; r < numRows - 1; r++) {
+				if (mapToRef[r][c]) {
+					floodFillMap[r][c] = -1;
+				}
+				// Otherwise, kill it
+				else {
+					floodFillMap[r][c] = 0;
+				}
+			}
+		}
+
+
 		// Step through all empty tiles and determine what unique "chamber" they are a part of
 		short fillNumber = 1; // Would be used to uniquely identify the specific cavern
 		for (int c = 1; c < numCols - 1; c++) {
 			for (int r = 1; r < numRows - 1; r++) {
-				// If this tile is empty...
+				// If this tile is empty and hasn't been tested yet...
 				if(!mapToRef[r][c] && mapForFloodFill[r][c] == 0) {
 					// Construct a new chamber
 					chambers.add(new Array<>());
 
 					// Perform the actual flood fill (Recursively)
-					performFloodFill(mapToRef, mapForFloodFill, c, r, fillNumber);
+					performFloodFill(mapForFloodFill, c, r, fillNumber);
 
 					// Bump the fill number to make the next discovered chamber unique
 					fillNumber++;
@@ -458,7 +481,7 @@ public class GameScreen extends ScreenAdapter {
 			// Determine the largest and thus "central" chamber
 			centralChamber = determineLargestChamber(chambers);
 
-			// Connect all chambers to the central chamber
+			// Connect all chambers to central chamber, making a single chamber
 			connectAllChambers(chambers, centralChamber);
 		}
 	}
@@ -477,7 +500,7 @@ public class GameScreen extends ScreenAdapter {
 		return largestChamber;
 	}
 
-	private void performFloodFill(boolean[][] mapToRef, short[][] mapForFloodFill, int c, int r, short fillNumber) {
+	private void performFloodFill(short[][] mapForFloodFill, int c, int r, short fillNumber) {
 		/*
 			From Wikipedia on flood fill...
 			1. If the color of node is not equal to target-color, return.
@@ -504,22 +527,22 @@ public class GameScreen extends ScreenAdapter {
 
 		// West
 		if (c > 1) {
-			performFloodFill(mapToRef, mapForFloodFill, c - 1, r, fillNumber);
+			performFloodFill(mapForFloodFill, c - 1, r, fillNumber);
 		}
 
 		// East
 		if (c < numCols - 2) {
-			performFloodFill(mapToRef, mapForFloodFill, c + 1, r, fillNumber);
+			performFloodFill(mapForFloodFill, c + 1, r, fillNumber);
 		}
 
 		// North
 		if (r < numRows - 2) {
-			performFloodFill(mapToRef, mapForFloodFill, c, r + 1, fillNumber);
+			performFloodFill(mapForFloodFill, c, r + 1, fillNumber);
 		}
 
 		// South
 		if (r > 1) {
-			performFloodFill(mapToRef, mapForFloodFill, c, r - 1, fillNumber);
+			performFloodFill(mapForFloodFill, c, r - 1, fillNumber);
 		}
 
 	}
@@ -553,6 +576,20 @@ public class GameScreen extends ScreenAdapter {
 				}
 			}
 		}
+
+		// Make sure the now SINGLE chamber has all of the open coords in it... to reference elsewhere if need be
+		chambers.clear();
+		centralChamber.clear();
+
+		for (int y = numRows - 1; y >= 0; y--) {
+			for (int x = 0; x < numCols; x++) {
+				if (!procGenMap[y][x] ) {
+					centralChamber.add(new Vector2(x, y));
+				}
+			}
+		}
+
+		chambers.add(centralChamber);
 	}
 
 	// `````````````````````````````````````
