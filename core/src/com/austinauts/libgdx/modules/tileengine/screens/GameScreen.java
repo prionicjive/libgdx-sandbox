@@ -18,7 +18,10 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.TimeUtils;
+
+import java.util.Iterator;
 
 public class GameScreen extends ScreenAdapter {
 	private final int BLOCK_SIZE = 16; // TODO Need to unify this with how big we select the tile texture to be
@@ -41,7 +44,6 @@ public class GameScreen extends ScreenAdapter {
 
 	private Array<Array<Vector2>> chambers;
 	private Array<Vector2> centralChamber;
-	private boolean allChambersShouldConnect = true;
 	private TiledMapRenderer tileMapRenderer;
 
 	// --------------------
@@ -167,12 +169,17 @@ public class GameScreen extends ScreenAdapter {
 			public boolean keyDown(int key) {
 				if (key == Input.Keys.SPACE) {
 					iterateMap(procGenMap, procGenMapSnapshot, false);;
-					resetMapForRendering(procGenMap);
+					resetMapForRendering(procGenMap, false);
 					return true;
 				}
 				else if (key == Input.Keys.F) {
-					detectAndConnectChambers(procGenMap, floodFillMap);
-					resetMapForRendering(procGenMap);
+					detectAndConnectChambers(procGenMap, floodFillMap, false);
+					resetMapForRendering(procGenMap, true);
+					return true;
+				}
+				else if (key == Input.Keys.P) {
+					detectAndConnectChambers(procGenMap, floodFillMap, true);
+					resetMapForRendering(procGenMap, false);
 					return true;
 				}
 				else if (key == Input.Keys.ESCAPE) {
@@ -213,7 +220,7 @@ public class GameScreen extends ScreenAdapter {
 		performRandomFillOfTileMap(procGenMap);
 
 		// Generate a tilemap that can be used
-		resetMapForRendering(procGenMap);
+		resetMapForRendering(procGenMap, false);
 	}
 
 	private void performRandomFillOfTileMap(boolean[][] mapToFill) {
@@ -238,7 +245,7 @@ public class GameScreen extends ScreenAdapter {
 		}
 	}
 
-	private void resetMapForRendering(boolean[][] mapToRef) {
+	private void resetMapForRendering(boolean[][] mapToRef, boolean showFloodFill) {
 		if (tileMap != null) {
 			tileMap.dispose();
 			tileMap = null;
@@ -276,11 +283,16 @@ public class GameScreen extends ScreenAdapter {
 						// NOTE: Think of the cell as containing and determining how to render the Tile (Really just the image data)
 						TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();
 
-						// SHow a palette color only if we have one to use
-						int palettePosition = (floodFillMap[y][x] - 1) % 16;
-						if (palettePosition >= 0) {
-							cell.setTile(new StaticTiledMapTile(splitPalette[0][palettePosition]));
-							layer.setCell(x, y, cell);
+						if (showFloodFill) {
+							// Show a palette color only if we have one to use
+							int palettePosition = (floodFillMap[y][x] - 1) % 15;
+							if (palettePosition >= 0) {
+								cell.setTile(new StaticTiledMapTile(splitPalette[0][palettePosition]));
+								layer.setCell(x, y, cell);
+							}
+							else {
+								layer.setCell(x, y, null);
+							}
 						}
 						else {
 							layer.setCell(x, y, null);
@@ -405,10 +417,10 @@ public class GameScreen extends ScreenAdapter {
 
 	private boolean isOutOfBounds(int col, int row){
 		// The edges are considered out of bounds
-		if( col <= 0 || row <= 0) {
+		if( col < 1 || row < 1) {
 			return true;
 		}
-		else if( col >= numCols - 1 || row >= numRows - 1) {
+		else if( col > numCols - 2 || row > numRows - 2) {
 			return true;
 		}
 
@@ -417,7 +429,7 @@ public class GameScreen extends ScreenAdapter {
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	private void detectAndConnectChambers(boolean[][] mapToRef, short[][] mapForFloodFill) {
+	private void detectAndConnectChambers(boolean[][] mapToRef, short[][] mapForFloodFill, boolean allChambersShouldConnect) {
 		// Clear out any chamber data we have
 		for (Array<Vector2> chamber: chambers) {
 			chamber.clear();
@@ -447,7 +459,7 @@ public class GameScreen extends ScreenAdapter {
 			centralChamber = determineLargestChamber(chambers);
 
 			// Connect all chambers to the central chamber
-//			connectAllChambers(chambers, centralChamber);
+			connectAllChambers(chambers, centralChamber);
 		}
 	}
 
@@ -528,66 +540,170 @@ public class GameScreen extends ScreenAdapter {
 			Vector2 startCoord = chamber.get(MathUtils.random(chamber.size - 1));
 
 			// Determine goal coordinate (Random coordinate in the largest chamber)
-			Vector2 goalCoord = chamber.get(MathUtils.random(chamber.size - 1));
+			Vector2 goalCoord = largestChamber.get(MathUtils.random(largestChamber.size - 1));
 
 			// Using A* pathfinding, create a path between the start and goal coordinates
-			createAStarPath(startCoord, goalCoord);
+			Array<Vector2> calculatedPath = findAStarPath(startCoord, goalCoord);
+
+			// Finally, use the calculated path to connect the chamber to the largest one
+			if (calculatedPath != null) {
+				for (Vector2 currCoord : calculatedPath) {
+					procGenMap[(int) currCoord.y][(int) currCoord.x] = false;
+					floodFillMap[(int) currCoord.y][(int) currCoord.x] = 15;
+				}
+			}
 		}
 	}
 
 	// `````````````````````````````````````
 
-	private void createAStarPath(Vector2 startCoord, Vector2 goalCoord) {
-//		// The set of nodes already evaluated
-//		Array<Vector2> closedSet = new Array<>();
-//
-//		// The set of currently discovered nodes that are not evaluated yet.
-//		// Initially, only the start node is known.
-//		Array<Vector2> openSet = new Array<>();
-//		openSet.add(startCoord);
+	private Array<Vector2> findAStarPath(Vector2 startCoord, Vector2 goalCoord) {
+		// The set of nodes already evaluated
+		Array<Vector2> closedSet = new Array<>();
 
-//		// For each node, which node it can most efficiently be reached from.
-//		// If a node can be reached from many nodes, cameFrom will eventually contain the
-//		// most efficient previous step.
-//		Vector2[] cameFrom = new Vector2[numRows * numCols];
+		// The set of currently discovered nodes that are not evaluated yet.
+		// Initially, only the start node is known.
+		// TODO NOTE: Best to use a priority queue
+		Array<Vector2> openSet = new Array<>();
+		openSet.add(startCoord);
 
-//		// For each node, the cost of getting from the start node to that node.
-//		gScore := map with default value of Infinity
-//
-//		// The cost of going from start to start is zero.
-//		gScore[start] := 0
-//
-//		// For each node, the total cost of getting from the start node to the goal
-//		// by passing by that node. That value is partly known, partly heuristic.
-//		fScore := map with default value of Infinity
-//
-//		// For the first node, that value is completely heuristic.
-//		fScore[start] := heuristic_cost_estimate(start, goal)
-//
-//		while openSet is not empty
-//		current := the node in openSet having the lowest fScore[] value
-//		if current = goal
-//		return reconstruct_path(cameFrom, current)
-//
-//		openSet.Remove(current)
-//		closedSet.Add(current)
-//
-//		for each neighbor of current
-//		if neighbor in closedSet
-//		continue		// Ignore the neighbor which is already evaluated.
-//
-//				// The distance from start to a neighbor
-//				tentative_gScore := gScore[current] + dist_between(current, neighbor)
-//
-//		if neighbor not in openSet	// Discover a new node
-//		openSet.Add(neighbor)
-//            else if tentative_gScore >= gScore[neighbor]
-//		continue		// This is not a better path.
-//
-//				// This path is the best until now. Record it!
-//				cameFrom[neighbor] := current
-//		gScore[neighbor] := tentative_gScore
-//		fScore[neighbor] := gScore[neighbor] + heuristic_cost_estimate(neighbor, goal)
+		// For each node, which node it can most efficiently be reached from.
+		// If a node can be reached from many nodes, cameFrom will eventually contain the
+		// most efficient previous step.
+		ObjectMap<Vector2, Vector2> cameFrom = new ObjectMap<>();
+
+		// For each node, the cost of getting from the start node to that node.
+		ObjectMap<Vector2, Integer> gScores = new ObjectMap<>();
+
+		// The cost of going from start to start is zero.
+		gScores.put(startCoord, 0);
+
+		// For each node, the total cost of getting from the start node to the goal
+		// by passing by that node. That value is partly known, partly heuristic.
+		ObjectMap<Vector2, Integer> fScores = new ObjectMap<>();
+
+		// For the first node, that value is completely heuristic.
+		fScores.put(startCoord, heuristicCostEstimate(startCoord, goalCoord));
+
+		// Use to store neighbors as we need them
+		Array<Vector2> neighbors = new Array<>();
+
+		while (openSet.size > 0) {
+			// TODO Could be replaced by priority queue
+			Vector2 currentCoord = findLowestFScore(openSet, fScores);
+
+			// If we've reached the goal, give back the reconstructed path
+			if (currentCoord.equals(goalCoord)) {
+				return reconstructPath(cameFrom, currentCoord);
+			}
+
+			// Since we are processing the current coord, remove from open set and put in closed set
+			openSet.removeValue(currentCoord, false);
+			closedSet.add(currentCoord);
+
+			// Clear out any older neighbors from other checks so that we can add the neighbors for this current coord
+			neighbors.clear();
+
+			// Add neighbors of the current coord that are in bounds
+
+			// West
+			if (!isOutOfBounds((int)currentCoord.x - 1, (int)currentCoord.y)) {
+				neighbors.add(new Vector2(currentCoord.x - 1, currentCoord.y));
+			}
+
+			// East
+			if (!isOutOfBounds((int)currentCoord.x + 1, (int)currentCoord.y)) {
+				neighbors.add(new Vector2(currentCoord.x + 1, currentCoord.y));
+			}
+
+			// South
+			if (!isOutOfBounds((int)currentCoord.x, (int)currentCoord.y - 1)) {
+				neighbors.add(new Vector2(currentCoord.x, currentCoord.y - 1));
+			}
+
+			// North
+			if (!isOutOfBounds((int)currentCoord.x, (int)currentCoord.y + 1)) {
+				neighbors.add(new Vector2(currentCoord.x, currentCoord.y + 1));
+			}
+
+			for (Vector2 neighbor : neighbors) {
+				// Ignore the neighbor if its already been processed
+				if (closedSet.indexOf(neighbor, false) > -1) {
+					continue;
+				}
+
+				// Find the distance from start to a neighbor
+				int tentativeGScoreForNeighbor = gScores.get(currentCoord, Integer.MAX_VALUE)
+						+ distanceBetween(currentCoord, neighbor);
+				boolean tentativeIsBetter = false;
+
+				// If neighbor is not in the openSet, it mean we've discovered a brand new node that hasn't been processed
+				if (openSet.indexOf(neighbor, false) == -1) {
+					openSet.add(neighbor);
+					tentativeIsBetter = true;
+				}
+				// Otherwise, if the distance from start to the neighbor is "better"
+				else if (tentativeGScoreForNeighbor < gScores.get(neighbor, Integer.MAX_VALUE)) {
+					tentativeIsBetter = true;
+				}
+
+				// This is the best path for this neighbor for now so record it
+				if (tentativeIsBetter) {
+					cameFrom.put(neighbor, currentCoord);
+					gScores.put(neighbor, tentativeGScoreForNeighbor);
+					fScores.put(neighbor, gScores.get(neighbor, Integer.MAX_VALUE) + heuristicCostEstimate(neighbor, goalCoord));
+				}
+			}
+		}
+
+		// If we made it here, there was no valid way to connect the chamber so return null (Pretty much SHOULD NOT happen)
+		return null;
+	}
+
+	private Vector2 findLowestFScore(Array<Vector2> openSet, ObjectMap<Vector2, Integer> fScores) {
+		int indexOfLowestFScore = 0;
+		int lowestFScore = fScores.get(openSet.get(indexOfLowestFScore), Integer.MAX_VALUE);
+
+		for (int i = 0; i < openSet.size; i ++) {
+			Vector2 coordToCheck = openSet.get(i);
+			int currFScore = fScores.get(coordToCheck, Integer.MAX_VALUE);
+
+			if (currFScore < lowestFScore)
+			{
+				lowestFScore = currFScore;
+				indexOfLowestFScore = i;
+			}
+		}
+
+		return openSet.get(indexOfLowestFScore);
+	}
+
+	private int heuristicCostEstimate(Vector2 coord1, Vector2 coord2) {
+		int D = 1;
+
+		// Jack up the cost if the current coord is for an actual filled tile
+		if (procGenMap[(int)coord1.y][(int)coord1.x]) {
+			D = 10;
+		}
+
+		return D * (int)(Math.abs(coord1.x - coord2.x) + Math.abs(coord1.y - coord2.y));
+	}
+
+	private int distanceBetween(Vector2 coord1, Vector2 coord2) {
+		int D = 5;
+		return D * (int)(Math.abs(coord1.x - coord2.x) + Math.abs(coord1.y - coord2.y));
+	}
+
+	private Array<Vector2> reconstructPath(ObjectMap<Vector2, Vector2> cameFrom, Vector2 current) {
+		Array<Vector2> reconstructedPath = new Array<>();
+		reconstructedPath.add(current);
+
+		while (cameFrom.containsKey(current)) {
+			current = cameFrom.get(current);
+			reconstructedPath.add(current);
+		}
+
+		return reconstructedPath;
 	}
 
 	// ````````````````````````````````
