@@ -1,11 +1,13 @@
 package com.austinauts.libgdx.common.utils;
 
+import com.austinauts.libgdx.common.tilemap.Tile;
+import com.austinauts.libgdx.common.tilemap.TileType;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 
 public class PathingHelper {
-	public static Array<Vector2> findAStarPath(boolean[][] mapToRef, Vector2 startCoord, Vector2 goalCoord) {
+	public static Array<Vector2> findAStarPath(Tile[][] mapToRef, Vector2 startCoord, Vector2 goalCoord) {
 		// The set of nodes already evaluated
 		Array<Vector2> closedSet = new Array<>();
 
@@ -142,12 +144,12 @@ public class PathingHelper {
 		return openSet.get(indexOfLowestFScore);
 	}
 
-	private static int heuristicCostEstimate(boolean[][] mapToRef, Vector2 coord1, Vector2 coord2) {
+	private static int heuristicCostEstimate(Tile[][] mapToRef, Vector2 coord1, Vector2 coord2) {
 		int D = 1;
 
 		// Jack up the cost depending on the tile type
 		// TODO Determine what tiles affect this
-		if (mapToRef[(int)coord1.y][(int)coord1.x]) {
+		if (mapToRef[(int)coord1.y][(int)coord1.x].type == TileType.WALL) {
 			D = 5;
 		}
 

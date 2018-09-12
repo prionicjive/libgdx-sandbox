@@ -12,19 +12,20 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 
 public class ProcGenMap {
-	private TiledMap tileMap;
-	private boolean[][] procGenMap;
-	private short[][] floodFillMap;
+	private TiledMap tileMap; // For rendering
+	private Tile[][] procGenMap; // Representing out actual data
+	private Tile[][] procGenMapSnapshot; // Scratch snapshot in order to prevent reallocation every iteration
 
 	private int numCols;
 	private int numRows;
 
+	// TODO Try to remove these
 	private int tileSize;
 	private final TextureRegion[][] splitTiles;
 	private final TextureRegion[][] splitPalette;
 
 	// TODO Need to either be passed to the constructor
-	private final int initialChanceOfTile;
+	private final int initialChanceOfWall;
 	private final int birthThreshold = 5;
 	private final int surviveThreshold = 4;
 	private final int largeSpaceThreshold = 2;
@@ -48,14 +49,23 @@ public class ProcGenMap {
 	public ProcGenMap(int numCols, int numRows, int initialChanceOfTile, int tileSize, TextureRegion[][] splitTiles, TextureRegion[][] splitPalette) {
 		this.numCols = numCols;
 		this.numRows = numRows;
-		this.initialChanceOfTile = initialChanceOfTile;
+		this.initialChanceOfWall = initialChanceOfTile;
 		this.tileSize = tileSize;
-		this.splitTiles = splitTiles;
+		this.splitTiles = splitTiles; // TODO Have single sprite map
 		this.splitPalette = splitPalette;
 
 		tileMap = new TiledMap();
-		procGenMap = new boolean[numRows][numCols];
-		floodFillMap = new short[numRows][numCols];
+
+		procGenMap = new Tile[numRows][numCols];
+		procGenMapSnapshot = new Tile[numRows][numCols];
+		// Having to flip the y to match world contents
+		for (int y = numRows - 1; y >= 0; y--) {
+			for (int x = 0; x < numCols; x++) {
+				// Reset the current tile
+				procGenMap[y][x] = new Tile();
+				procGenMapSnapshot[y][x] = new Tile();
+			}
+		}
 
 		// Determine the minimum distance (Manhattan) between entrance and exit
 		minDistanceBetweenEntranceAndExit = 50;
@@ -69,13 +79,13 @@ public class ProcGenMap {
 		chambers = new Array<>();
 	}
 
+	// TODO Rename to reset?
 	public void initialize() {
 		// Having to flip the y to match world contents
 		for (int y = numRows - 1; y >= 0; y--) {
 			for (int x = 0; x < numCols; x++) {
-				// Initialize the current tile
-				procGenMap[y][x] = false;
-				floodFillMap[y][x] = 0;
+				// Reset the current tile
+				procGenMap[y][x].reset();
 			}
 		}
 	}
@@ -87,19 +97,19 @@ public class ProcGenMap {
 		// Having to flip the y to match world contents
 		for (int y = numRows - 1; y >= 0; y--) {
 			for (int x = 0; x < numCols; x++) {
-				// Add a tile at the outer rows and edges
+				// Add a wall at the outer rows and edges
 				if (x == 0 || y == 0 || x == numCols - 1 || y == numRows - 1) {
-					procGenMap[y][x] = true;
-					floodFillMap[y][x] = -1;
+					procGenMap[y][x].type = TileType.WALL;
+					procGenMap[y][x].associatedChamber = -1;
 				}
-				// OR determine if a tile should be randomly created at this cell
-				else if (MathUtils.random(1, 100) <= initialChanceOfTile) {
-					procGenMap[y][x] = true;
-					floodFillMap[y][x] = -1;
+				// OR determine if a wall should be randomly created at this tile
+				else if (MathUtils.random(1, 100) <= initialChanceOfWall) {
+					procGenMap[y][x].type = TileType.WALL;
+					procGenMap[y][x].associatedChamber = -1;
 				}
 				else {
-					procGenMap[y][x] = false;
-					floodFillMap[y][x] = 0;
+					procGenMap[y][x].type = TileType.EMPTY;
+					procGenMap[y][x].associatedChamber = 0;
 				}
 			}
 		}
@@ -137,9 +147,9 @@ public class ProcGenMap {
 
 		for (int x = 0; x < numCols; x++) {
 			for (int y = 0; y < numRows; y++) {
-				if (procGenMap[y][x]) {
-					// Create a cell and set a tile to it
-					// NOTE: Think of the cell as containing and determining how to render the Tile (Really just the image data)
+				if (procGenMap[y][x].type == TileType.WALL) {
+					// Create a cell and set a wall to it
+					// NOTE: Think of the cell as containing and determining how to render the wall (Really just the image data)
 					TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();
 					cell.setTile(new StaticTiledMapTile(splitTiles[ty][tx]));
 
@@ -153,7 +163,8 @@ public class ProcGenMap {
 
 					if (showFloodFill) {
 						// Show a palette color only if we have one to use
-						int palettePosition = (floodFillMap[y][x] - 1) % 15;
+						// TODO Get rid of this... this is uber hacky
+						int palettePosition = (procGenMap[y][x].associatedChamber - 1) % 15;
 						if (palettePosition >= 0) {
 							cell.setTile(new StaticTiledMapTile(splitPalette[0][palettePosition]));
 							layer.setCell(x, y, cell);
@@ -209,11 +220,11 @@ public class ProcGenMap {
 		resetObjects();
 
 		// Set the snapshot's tiles to mirror that of the actual tileMap's tiles
-		boolean[][] procGenMapSnapshot = new boolean[numRows][numCols];
 		// TODO Can this be combine with other iteration so the whole map doesn't have to be walked multiple times
 		for (int y = numRows - 1; y >= 0; y--) {
 			for (int x = 0; x < numCols; x++) {
-				procGenMapSnapshot[y][x] = procGenMap[y][x];
+				procGenMapSnapshot[y][x].type = procGenMap[y][x].type;
+				procGenMapSnapshot[y][x].associatedChamber = procGenMap[y][x].associatedChamber;
 			}
 		}
 
@@ -224,16 +235,16 @@ public class ProcGenMap {
 				int numTilesInNeighborhood = getNeighborTiles(procGenMapSnapshot, c, r, neighborhoodScope);
 
 				// If this tile is a tile...
-				if(procGenMapSnapshot[r][c]) {
+				if(procGenMapSnapshot[r][c].type == TileType.WALL) {
 					// If at least the surviveThreshold of neighbors are tiles, it stays alive
 					if (numTilesInNeighborhood >= surviveThreshold) {
-						procGenMap[r][c] = true;
-						floodFillMap[r][c] = -1;
+						procGenMap[r][c].type = TileType.WALL;
+						procGenMap[r][c].associatedChamber = -1;
 					}
 					// Otherwise, kill it
 					else {
-						procGenMap[r][c] = false;
-						floodFillMap[r][c] = 0;
+						procGenMap[r][c].type = TileType.EMPTY;
+						procGenMap[r][c].associatedChamber = 0;
 					}
 				}
 				// If at least the birthThreshold of neighbors are tiles OR there are barely any tiles around in the larger neighborhood, give this tile the gift of life
@@ -241,20 +252,20 @@ public class ProcGenMap {
 					int numTilesInLargeNeighborhood = getNeighborTiles(procGenMapSnapshot, c, r, largeNeighborhoodScope);
 
 					if (numTilesInNeighborhood >= birthThreshold || (doLargeNeighborhoodCheck && numTilesInLargeNeighborhood <= largeSpaceThreshold)) {
-						procGenMap[r][c] = true;
-						floodFillMap[r][c] = -1;
+						procGenMap[r][c].type = TileType.WALL;
+						procGenMap[r][c].associatedChamber = -1;
 					}
 					// Otherwise, it stays dead
 					else {
-						procGenMap[r][c] = false;
-						floodFillMap[r][c] = 0;
+						procGenMap[r][c].type = TileType.EMPTY;
+						procGenMap[r][c].associatedChamber = 0;
 					}
 				}
 			}
 		}
 	}
 
-	private int getNeighborTiles(boolean[][] mapToRef, int col, int row, int scope) {
+	private int getNeighborTiles(Tile[][] mapToRef, int col, int row, int scope) {
 		int startX = col - scope;
 		int startY = row - scope;
 		int endX = col + scope;
@@ -275,12 +286,12 @@ public class ProcGenMap {
 	}
 
 
-	private boolean isTile(boolean[][] mapToRef, int col, int row) {
+	private boolean isTile(Tile[][] mapToRef, int col, int row) {
 		// Consider out-of-bound a tile
 		if (PathingHelper.isOutOfBounds(col, row, numCols, numRows)) {
 			return true;
 		}
-		else if(mapToRef[row][col]) {
+		else if(mapToRef[row][col].type == TileType.WALL) {
 			return true;
 		}
 
@@ -299,12 +310,12 @@ public class ProcGenMap {
 		// TODO Pull out elsewhere
 		for (int c = 1; c < numCols - 1; c++) {
 			for (int r = 1; r < numRows - 1; r++) {
-				if (procGenMap[r][c]) {
-					floodFillMap[r][c] = -1;
+				if (procGenMap[r][c].type == TileType.WALL) {
+					procGenMap[r][c].associatedChamber = -1;
 				}
 				// Otherwise, kill it
 				else {
-					floodFillMap[r][c] = 0;
+					procGenMap[r][c].associatedChamber = 0;
 				}
 			}
 		}
@@ -313,8 +324,8 @@ public class ProcGenMap {
 		short fillNumber = 1; // Would be used to uniquely identify the specific cavern
 		for (int c = 1; c < numCols - 1; c++) {
 			for (int r = 1; r < numRows - 1; r++) {
-				// If this tile is empty and hasn't been tested yet...
-				if(!procGenMap[r][c] && floodFillMap[r][c] == 0) {
+				// If this tile is empty and hasn't been tested yet (Still flagged as the default empty chamber)...
+				if(procGenMap[r][c].type == TileType.EMPTY && procGenMap[r][c].associatedChamber == 0) {
 					// Construct a new chamber
 					chambers.add(new Array<>());
 
@@ -350,7 +361,7 @@ public class ProcGenMap {
 		return largestChamber;
 	}
 
-	private void performFloodFill(int c, int r, short fillNumber) {
+	private void performFloodFill(int c, int r, short chamberIndex) {
 		/*
 			From Wikipedia on flood fill...
 			1. If the color of node is not equal to target-color, return.
@@ -362,13 +373,13 @@ public class ProcGenMap {
             4. Return.
         */
 
-		// Don't go any further if this is actually a tile
-		if (floodFillMap[r][c] != 0) {
+		// Don't go any further if this is actually a tile OR has been checked
+		if (procGenMap[r][c].associatedChamber != 0) {
 			return;
 		}
 
-		// Set a fillNumber in the flood fill map
-		floodFillMap[r][c] = fillNumber;
+		// Set the associated chamber index for the tile
+		procGenMap[r][c].associatedChamber  = chamberIndex;
 
 		// NOW... <breathe>... add this coordinate to the chamber
 		chambers.get(chambers.size - 1).add(new Vector2(c, r));
@@ -377,22 +388,22 @@ public class ProcGenMap {
 
 		// West
 		if (c > 1) {
-			performFloodFill(c - 1, r, fillNumber);
+			performFloodFill(c - 1, r, chamberIndex);
 		}
 
 		// East
 		if (c < numCols - 2) {
-			performFloodFill(c + 1, r, fillNumber);
+			performFloodFill(c + 1, r, chamberIndex);
 		}
 
 		// North
 		if (r < numRows - 2) {
-			performFloodFill(c, r + 1, fillNumber);
+			performFloodFill(c, r + 1, chamberIndex);
 		}
 
 		// South
 		if (r > 1) {
-			performFloodFill(c, r - 1, fillNumber);
+			performFloodFill(c, r - 1, chamberIndex);
 		}
 
 	}
@@ -421,8 +432,8 @@ public class ProcGenMap {
 			// Finally, use the calculated path to connect the chamber to the largest one
 			if (calculatedPath != null) {
 				for (Vector2 currCoord : calculatedPath) {
-					procGenMap[(int) currCoord.y][(int) currCoord.x] = false;
-					floodFillMap[(int) currCoord.y][(int) currCoord.x] = 15;
+					procGenMap[(int) currCoord.y][(int) currCoord.x].type = TileType.EMPTY;
+					procGenMap[(int) currCoord.y][(int) currCoord.x].associatedChamber = 15;
 				}
 			}
 		}
@@ -434,7 +445,7 @@ public class ProcGenMap {
 		// TODO Consider return a new chamber that can be used so that this function is more "pure"
 		for (int y = numRows - 1; y >= 0; y--) {
 			for (int x = 0; x < numCols; x++) {
-				if (!procGenMap[y][x] ) {
+				if (procGenMap[y][x].type == TileType.EMPTY ) {
 					centralChamber.add(new Vector2(x, y));
 				}
 			}
@@ -489,7 +500,7 @@ public class ProcGenMap {
 			for (int r = numRows - 2; r >= 1; r--) {
 				for (int c = 1; c < numCols - 1; c++) {
 					// If this tile is empty...
-					if(!procGenMap[r][c]) {
+					if(procGenMap[r][c].type == TileType.EMPTY) {
 						// Count the number of tiles in the neighborhood
 						int numTilesInNeighborhood = getNeighborTiles(procGenMap, c, r, 1);
 
