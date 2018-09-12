@@ -21,8 +21,6 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.TimeUtils;
 
-import java.util.Iterator;
-
 public class GameScreen extends ScreenAdapter {
 	private final int BLOCK_SIZE = 16; // TODO Need to unify this with how big we select the tile texture to be
 
@@ -76,6 +74,9 @@ public class GameScreen extends ScreenAdapter {
 	private final int neighborhoodScope = 1;
 	private final int largeNeighborhoodScope = 2;
 
+	// TODO Better way to store this
+	Vector2 entranceCoord;
+	Vector2 exitCoord;
 
 	public GameScreen(final AustinautsGame game) {
 		_game = game;
@@ -184,9 +185,14 @@ public class GameScreen extends ScreenAdapter {
 					resetMapForRendering(procGenMap, false);
 					return true;
 				}
-				// Connect all chambers
+				// Connect all chambers and place start / finish points
 				else if (key == Input.Keys.S) {
 					detectAndConnectChambers(procGenMap, floodFillMap, true);
+
+					// Determine entrance and exit
+					// TODO Need to make sure central chamber isn't just expected all willy nilly
+					determineEntranceAndExitForChamber(entranceCoord, exitCoord, centralChamber);
+
 					resetMapForRendering(procGenMap, false);
 					return true;
 				}
@@ -224,6 +230,10 @@ public class GameScreen extends ScreenAdapter {
 	private void generateNewLevel() {
 		// Reset the number of iterations
 		numIterations = 0;
+
+		// TODO Better place to null this out
+		entranceCoord = null;
+		exitCoord = null;
 
 		// Use procedural generation to initial smatter the level with tiles
 		performRandomFillOfTileMap(procGenMap);
@@ -310,6 +320,22 @@ public class GameScreen extends ScreenAdapter {
 				}
 			}
 
+			// If the entrance and exit have been placed, make them visible!
+
+			if (entranceCoord != null && exitCoord != null) {
+				// Show a palette color only if we have one to use
+				int entranceIndex = 2;
+				int exitIndex = 0;
+
+				TiledMapTileLayer.Cell entranceCell = new TiledMapTileLayer.Cell();
+				entranceCell.setTile(new StaticTiledMapTile(splitPalette[0][entranceIndex]));
+				layer.setCell((int)entranceCoord.x, (int)entranceCoord.y, entranceCell);
+
+				TiledMapTileLayer.Cell exitCell = new TiledMapTileLayer.Cell();
+				exitCell.setTile(new StaticTiledMapTile(splitPalette[0][exitIndex]));
+				layer.setCell((int)exitCoord.x, (int)exitCoord.y, exitCell);
+			}
+
 			// Add to our set of layers
 			tileMap.getLayers().add(layer);
 		}
@@ -319,6 +345,10 @@ public class GameScreen extends ScreenAdapter {
 	}
 
 	private void iterateMap(boolean[][] mapToIterate, boolean[][] mapToUseAsSnapshot, boolean doLargeNeighborhoodCheck) {
+		// TODO Better place to null this out
+		entranceCoord = null;
+		exitCoord = null;
+
 		// Set the snapshot's tiles to mirror that of the actual tileMap's tiles
 		// TODO Can this be combine with other iteration so the whole map doesn't have to be walked multiple times
 		for (int y = numRows - 1; y >= 0; y--) {
@@ -445,6 +475,10 @@ public class GameScreen extends ScreenAdapter {
 		}
 		chambers.clear();
 
+		// TODO Best place to clear out entrance and exit?
+		entranceCoord = null;
+		exitCoord = null;
+
 		// TODO Pull out elsewhere
 		for (int c = 1; c < numCols - 1; c++) {
 			for (int r = 1; r < numRows - 1; r++) {
@@ -457,7 +491,6 @@ public class GameScreen extends ScreenAdapter {
 				}
 			}
 		}
-
 
 		// Step through all empty tiles and determine what unique "chamber" they are a part of
 		short fillNumber = 1; // Would be used to uniquely identify the specific cavern
@@ -581,6 +614,7 @@ public class GameScreen extends ScreenAdapter {
 		chambers.clear();
 		centralChamber.clear();
 
+		// TODO Consider return a new chamber that can be used so that this function is more "pure"
 		for (int y = numRows - 1; y >= 0; y--) {
 			for (int x = 0; x < numCols; x++) {
 				if (!procGenMap[y][x] ) {
@@ -590,6 +624,19 @@ public class GameScreen extends ScreenAdapter {
 		}
 
 		chambers.add(centralChamber);
+	}
+
+	private void determineEntranceAndExitForChamber(Vector2 entrance, Vector2 exit, Array<Vector2> chamber) {
+		// TODO Better way to do this... like returning an encapsulating object?
+		entrance = null;
+		exit = null;
+
+		// TODO Use a distance to determine and check if the exit works
+		entrance = new Vector2(chamber.get(MathUtils.random(chamber.size - 1)));
+		exit = new Vector2(chamber.get(MathUtils.random(chamber.size - 1)));
+
+		entranceCoord = entrance;
+		exitCoord = exit;
 	}
 
 	// `````````````````````````````````````
