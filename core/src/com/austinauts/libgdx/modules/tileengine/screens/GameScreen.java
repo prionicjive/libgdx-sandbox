@@ -1,6 +1,8 @@
 package com.austinauts.libgdx.modules.tileengine.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
+import com.austinauts.libgdx.common.utils.PathingHelper;
+import com.austinauts.libgdx.common.utils.ShaderHelper;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -77,6 +79,10 @@ public class GameScreen extends ScreenAdapter {
 	// TODO Better way to store this
 	Vector2 entranceCoord;
 	Vector2 exitCoord;
+	int minDistanceBetweenEntranceAndExit;
+	Array<Vector2> collectibles;
+	int numCollectibles;
+	int nestledCollectibleNeighborThreshold;
 
 	public GameScreen(final AustinautsGame game) {
 		_game = game;
@@ -110,9 +116,16 @@ public class GameScreen extends ScreenAdapter {
 //		// Lastly, create our special tile map renderer!
 //		tileMapRenderer = new OrthogonalTiledMapRenderer(tileMap);
 
-
 		// Set up our chambers map
 		chambers = new Array<>();
+
+		// Determine the minimum distance (Manhattan) between entrance and exit
+		minDistanceBetweenEntranceAndExit = 50;
+
+		// Set up the array of collectibles
+		collectibles = new Array<>();
+		numCollectibles = 10;
+		nestledCollectibleNeighborThreshold = 6;
 
 		// Divide up the individual sprites in the sprite sheet
 		splitTiles = TextureRegion.split(_game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_TILESET, Texture.class), BLOCK_SIZE, BLOCK_SIZE);
@@ -191,8 +204,25 @@ public class GameScreen extends ScreenAdapter {
 
 					// Determine entrance and exit
 					// TODO Need to make sure central chamber isn't just expected all willy nilly
-					determineEntranceAndExitForChamber(entranceCoord, exitCoord, centralChamber);
+					Array<Vector2> entranceExit = determineEntranceAndExitForChamber(centralChamber);
 
+					if (entranceExit.size == 2) {
+						entranceCoord = entranceExit.get(0);
+						exitCoord = entranceExit.get(1);
+					}
+
+					resetMapForRendering(procGenMap, false);
+					return true;
+				}
+				// Determine where random collectibles should go
+				else if (key == Input.Keys.C) {
+					calculateCollectibleLocations(collectibles, centralChamber);
+					resetMapForRendering(procGenMap, false);
+					return true;
+				}
+				// Determine where random NESTLED collectibles should go
+				else if (key == Input.Keys.N) {
+					calculateNestledCollectibleLocations(procGenMap, collectibles);
 					resetMapForRendering(procGenMap, false);
 					return true;
 				}
@@ -234,6 +264,9 @@ public class GameScreen extends ScreenAdapter {
 		// TODO Better place to null this out
 		entranceCoord = null;
 		exitCoord = null;
+
+		// TODO Better place to clear this
+		collectibles.clear();
 
 		// Use procedural generation to initial smatter the level with tiles
 		performRandomFillOfTileMap(procGenMap);
@@ -336,6 +369,18 @@ public class GameScreen extends ScreenAdapter {
 				layer.setCell((int)exitCoord.x, (int)exitCoord.y, exitCell);
 			}
 
+			if (collectibles.size > 0) {
+				// Show a palette color only if we have one to use
+				int collectibleIndex = 4;
+
+				TiledMapTileLayer.Cell collectibleCell = new TiledMapTileLayer.Cell();
+				collectibleCell.setTile(new StaticTiledMapTile(splitPalette[0][collectibleIndex]));
+
+				for (Vector2 collectible : collectibles) {
+					layer.setCell((int) collectible.x, (int) collectible.y, collectibleCell);
+				}
+			}
+
 			// Add to our set of layers
 			tileMap.getLayers().add(layer);
 		}
@@ -348,6 +393,9 @@ public class GameScreen extends ScreenAdapter {
 		// TODO Better place to null this out
 		entranceCoord = null;
 		exitCoord = null;
+
+		// TODO Better place to clear this
+		collectibles.clear();
 
 		// Set the snapshot's tiles to mirror that of the actual tileMap's tiles
 		// TODO Can this be combine with other iteration so the whole map doesn't have to be walked multiple times
@@ -444,22 +492,10 @@ public class GameScreen extends ScreenAdapter {
 
 	private boolean isTile(boolean[][] mapSnapshot, int col, int row) {
 		// Consider out-of-bound a tile
-		if (isOutOfBounds(col, row)) {
+		if (PathingHelper.isOutOfBounds(col, row, numCols, numRows)) {
 			return true;
 		}
 		else if(mapSnapshot[row][col]) {
-			return true;
-		}
-
-		return false;
-	}
-
-	private boolean isOutOfBounds(int col, int row){
-		// The edges are considered out of bounds
-		if( col < 1 || row < 1) {
-			return true;
-		}
-		else if( col > numCols - 2 || row > numRows - 2) {
 			return true;
 		}
 
@@ -599,7 +635,7 @@ public class GameScreen extends ScreenAdapter {
 			Vector2 goalCoord = largestChamber.get(MathUtils.random(largestChamber.size - 1));
 
 			// Using A* pathfinding, create a path between the start and goal coordinates
-			Array<Vector2> calculatedPath = findAStarPath(startCoord, goalCoord);
+			Array<Vector2> calculatedPath = PathingHelper.findAStarPath(procGenMap, startCoord, goalCoord);
 
 			// Finally, use the calculated path to connect the chamber to the largest one
 			if (calculatedPath != null) {
@@ -626,169 +662,86 @@ public class GameScreen extends ScreenAdapter {
 		chambers.add(centralChamber);
 	}
 
-	private void determineEntranceAndExitForChamber(Vector2 entrance, Vector2 exit, Array<Vector2> chamber) {
-		// TODO Better way to do this... like returning an encapsulating object?
-		entrance = null;
-		exit = null;
+	private Array<Vector2> determineEntranceAndExitForChamber( Array<Vector2> chamber) {
+		Vector2 entrance = null;
+		Vector2 exit = null;
 
-		// TODO Use a distance to determine and check if the exit works
-		entrance = new Vector2(chamber.get(MathUtils.random(chamber.size - 1)));
-		exit = new Vector2(chamber.get(MathUtils.random(chamber.size - 1)));
+		// Make a copy of all coords from the chamber
+		Array<Vector2> allPossibleCoords = new Array<>(chamber);
+		entrance =  allPossibleCoords.removeIndex(MathUtils.random(allPossibleCoords.size - 1));
 
-		entranceCoord = entrance;
-		exitCoord = exit;
+		// While not perfect, we will go so far as to pick 2 random points and test if they meet the distance criteria
+		// If they don't we will indicate that the level should maybe be
+		while (allPossibleCoords.size > 0) {
+			// TODO Use a distance to determine and check if the exit works
+			exit = allPossibleCoords.removeIndex(MathUtils.random(allPossibleCoords.size - 1));
+
+			// IF the distance check is satisfied, break!
+			if (PathingHelper.distanceBetween(entrance, exit) >= minDistanceBetweenEntranceAndExit) {
+				break;
+			}
+		}
+
+		// If we get here, we've exhausted do our reasonable attempt so just use the last entrance / exit pair we decided to test
+		Array<Vector2> entranceExit = new Array<>();
+
+		if (entrance != null) {
+			entranceExit.add(entrance);
+		}
+
+		if (exit != null) {
+			entranceExit.add(exit);
+		}
+
+		return entranceExit;
+	}
+
+	private void calculateCollectibleLocations(Array<Vector2> collectibleLocations, Array<Vector2> chamber) {
+		// TODO Best to not change this via its reference
+		// TODO Not consistent with either using parameter or global values
+		if (collectibleLocations != null && chamber != null && chamber.size >= numCollectibles) {
+			// Clear out what we do have
+			collectibleLocations.clear();
+
+			// Possible locations to put things
+			Array<Vector2> possibleLocations = new Array<>(chamber);
+
+			// TODO Keep in mind... we don't wanna spawn on player, other collectibles, entrance, exit, etc
+			// TODO Best to just have map to reference have an enum for tiles to more easily check what is there
+			for (int i = 0; i < numCollectibles; i++) {
+				collectibleLocations.add(possibleLocations.removeIndex(MathUtils.random(possibleLocations.size - 1)));
+			}
+		}
+	}
+
+	private void calculateNestledCollectibleLocations(boolean[][] mapToRef, Array<Vector2> collectibleLocations) {
+		// TODO Best to not change this via its reference
+		// TODO Not consistent with either using parameter or global values
+		if (collectibleLocations != null) {
+			// Clear out what we do have
+			collectibleLocations.clear();
+
+			for (int r = numRows - 2; r >= 1; r--) {
+				for (int c = 1; c < numCols - 1; c++) {
+					// If this tile is empty...
+					if(!mapToRef[r][c]) {
+						// Count the number of tiles in the neighborhood
+						int numTilesInNeighborhood = getNeighborTiles(mapToRef, c, r, 1);
+
+						if (numTilesInNeighborhood >= nestledCollectibleNeighborThreshold) {
+							collectibleLocations.add(new Vector2(c, r));
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// `````````````````````````````````````
 
-	private Array<Vector2> findAStarPath(Vector2 startCoord, Vector2 goalCoord) {
-		// The set of nodes already evaluated
-		Array<Vector2> closedSet = new Array<>();
 
-		// The set of currently discovered nodes that are not evaluated yet.
-		// Initially, only the start node is known.
-		// TODO NOTE: Best to use a priority queue
-		Array<Vector2> openSet = new Array<>();
-		openSet.add(startCoord);
 
-		// For each node, which node it can most efficiently be reached from.
-		// If a node can be reached from many nodes, cameFrom will eventually contain the
-		// most efficient previous step.
-		ObjectMap<Vector2, Vector2> cameFrom = new ObjectMap<>();
 
-		// For each node, the cost of getting from the start node to that node.
-		ObjectMap<Vector2, Integer> gScores = new ObjectMap<>();
-
-		// The cost of going from start to start is zero.
-		gScores.put(startCoord, 0);
-
-		// For each node, the total cost of getting from the start node to the goal
-		// by passing by that node. That value is partly known, partly heuristic.
-		ObjectMap<Vector2, Integer> fScores = new ObjectMap<>();
-
-		// For the first node, that value is completely heuristic.
-		fScores.put(startCoord, heuristicCostEstimate(startCoord, goalCoord));
-
-		// Use to store neighbors as we need them
-		Array<Vector2> neighbors = new Array<>();
-
-		while (openSet.size > 0) {
-			// TODO Could be replaced by priority queue
-			Vector2 currentCoord = findLowestFScore(openSet, fScores);
-
-			// If we've reached the goal, give back the reconstructed path
-			if (currentCoord.equals(goalCoord)) {
-				return reconstructPath(cameFrom, currentCoord);
-			}
-
-			// Since we are processing the current coord, remove from open set and put in closed set
-			openSet.removeValue(currentCoord, false);
-			closedSet.add(currentCoord);
-
-			// Clear out any older neighbors from other checks so that we can add the neighbors for this current coord
-			neighbors.clear();
-
-			// Add neighbors of the current coord that are in bounds
-
-			// West
-			if (!isOutOfBounds((int)currentCoord.x - 1, (int)currentCoord.y)) {
-				neighbors.add(new Vector2(currentCoord.x - 1, currentCoord.y));
-			}
-
-			// East
-			if (!isOutOfBounds((int)currentCoord.x + 1, (int)currentCoord.y)) {
-				neighbors.add(new Vector2(currentCoord.x + 1, currentCoord.y));
-			}
-
-			// South
-			if (!isOutOfBounds((int)currentCoord.x, (int)currentCoord.y - 1)) {
-				neighbors.add(new Vector2(currentCoord.x, currentCoord.y - 1));
-			}
-
-			// North
-			if (!isOutOfBounds((int)currentCoord.x, (int)currentCoord.y + 1)) {
-				neighbors.add(new Vector2(currentCoord.x, currentCoord.y + 1));
-			}
-
-			for (Vector2 neighbor : neighbors) {
-				// Ignore the neighbor if its already been processed
-				if (closedSet.indexOf(neighbor, false) > -1) {
-					continue;
-				}
-
-				// Find the distance from start to a neighbor
-				int tentativeGScoreForNeighbor = gScores.get(currentCoord, Integer.MAX_VALUE)
-						+ distanceBetween(currentCoord, neighbor);
-				boolean tentativeIsBetter = false;
-
-				// If neighbor is not in the openSet, it mean we've discovered a brand new node that hasn't been processed
-				if (openSet.indexOf(neighbor, false) == -1) {
-					openSet.add(neighbor);
-					tentativeIsBetter = true;
-				}
-				// Otherwise, if the distance from start to the neighbor is "better"
-				else if (tentativeGScoreForNeighbor < gScores.get(neighbor, Integer.MAX_VALUE)) {
-					tentativeIsBetter = true;
-				}
-
-				// This is the best path for this neighbor for now so record it
-				if (tentativeIsBetter) {
-					cameFrom.put(neighbor, currentCoord);
-					gScores.put(neighbor, tentativeGScoreForNeighbor);
-					fScores.put(neighbor, gScores.get(neighbor, Integer.MAX_VALUE) + heuristicCostEstimate(neighbor, goalCoord));
-				}
-			}
-		}
-
-		// If we made it here, there was no valid way to connect the chamber so return null (Pretty much SHOULD NOT happen)
-		return null;
-	}
-
-	private Vector2 findLowestFScore(Array<Vector2> openSet, ObjectMap<Vector2, Integer> fScores) {
-		int indexOfLowestFScore = 0;
-		int lowestFScore = fScores.get(openSet.get(indexOfLowestFScore), Integer.MAX_VALUE);
-
-		for (int i = 0; i < openSet.size; i ++) {
-			Vector2 coordToCheck = openSet.get(i);
-			int currFScore = fScores.get(coordToCheck, Integer.MAX_VALUE);
-
-			if (currFScore < lowestFScore)
-			{
-				lowestFScore = currFScore;
-				indexOfLowestFScore = i;
-			}
-		}
-
-		return openSet.get(indexOfLowestFScore);
-	}
-
-	private int heuristicCostEstimate(Vector2 coord1, Vector2 coord2) {
-		int D = 1;
-
-		// Jack up the cost if the current coord is for an actual filled tile
-		if (procGenMap[(int)coord1.y][(int)coord1.x]) {
-			D = 10;
-		}
-
-		return D * (int)(Math.abs(coord1.x - coord2.x) + Math.abs(coord1.y - coord2.y));
-	}
-
-	private int distanceBetween(Vector2 coord1, Vector2 coord2) {
-		int D = 5;
-		return D * (int)(Math.abs(coord1.x - coord2.x) + Math.abs(coord1.y - coord2.y));
-	}
-
-	private Array<Vector2> reconstructPath(ObjectMap<Vector2, Vector2> cameFrom, Vector2 current) {
-		Array<Vector2> reconstructedPath = new Array<>();
-		reconstructedPath.add(current);
-
-		while (cameFrom.containsKey(current)) {
-			current = cameFrom.get(current);
-			reconstructedPath.add(current);
-		}
-
-		return reconstructedPath;
-	}
 
 	// ````````````````````````````````
 
