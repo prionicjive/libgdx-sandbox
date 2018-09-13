@@ -1,6 +1,6 @@
 package com.austinauts.libgdx;
 
-import com.austinauts.libgdx.modules.tileengine.screens.LoadingScreen;
+import com.austinauts.libgdx.modules.tilemap.screens.LoadingScreen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.assets.AssetManager;

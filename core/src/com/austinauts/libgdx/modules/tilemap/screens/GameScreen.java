@@ -1,8 +1,7 @@
-package com.austinauts.libgdx.modules.tileengine.screens;
+package com.austinauts.libgdx.modules.tilemap.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
-import com.austinauts.libgdx.common.tilemap.ProcGenMap;
-import com.austinauts.libgdx.common.utils.PathingHelper;
+import com.austinauts.libgdx.modules.tilemap.tilemap.ProcGenMap;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -11,10 +10,7 @@ import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.TimeUtils;
 
 public class GameScreen extends ScreenAdapter {
@@ -41,11 +37,6 @@ public class GameScreen extends ScreenAdapter {
 	private ProcGenMap procGenMap;
 	private TextureRegion[][] splitTiles;
 	private TextureRegion[][] splitPalette;
-	private int numIterations;
-	private int numLayers;
-
-	private int tileWidth;
-	private int tileHeight;
 
 	public GameScreen(final AustinautsGame game) {
 		_game = game;
@@ -58,14 +49,6 @@ public class GameScreen extends ScreenAdapter {
 		// -------------------------------------
 		bigFont = _game.fontMap.get("munrosmall_30");
 		smallFont = _game.fontMap.get("munrosmall_10");
-
-		// ------------------------
-		// Set up tile variables
-		// ------------------------
-		numIterations = 0;
-		numLayers = 1;
-		tileWidth = BLOCK_SIZE;
-		tileHeight = BLOCK_SIZE;
 
 		// -------------------------------------
 		// Set up the game entities
@@ -134,7 +117,8 @@ public class GameScreen extends ScreenAdapter {
 		Gdx.input.setInputProcessor(new InputAdapter() {
 			public boolean keyDown(int key) {
 				if (key == Input.Keys.SPACE) {
-					procGenMap.iterateMap(false);;
+					procGenMap.iterateMap(false);
+					;
 					procGenMap.resetRenderLayer(false);
 					return true;
 				}
@@ -153,18 +137,20 @@ public class GameScreen extends ScreenAdapter {
 				// Connect all chambers and place start / finish points
 				else if (key == Input.Keys.S) {
 					procGenMap.detectAndConnectChambers(true);
-					procGenMap.determineEntranceAndExit();
+					procGenMap.calculateEntranceAndExit(); // TODO What to do if entrance and exit can't be found?
 					procGenMap.resetRenderLayer(false);
 					return true;
 				}
 				// Determine where random collectibles should go
 				else if (key == Input.Keys.C) {
+					procGenMap.detectAndConnectChambers(true);
 					procGenMap.calculateCollectibleLocations();
 					procGenMap.resetRenderLayer(false);
 					return true;
 				}
 				// Determine where random NESTLED collectibles should go
 				else if (key == Input.Keys.N) {
+					procGenMap.detectAndConnectChambers(true);
 					procGenMap.calculateNestledCollectibleLocations();
 					procGenMap.resetRenderLayer(false);
 					return true;
@@ -183,8 +169,7 @@ public class GameScreen extends ScreenAdapter {
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	private void initializeTileMap()
-	{
+	private void initializeTileMap() {
 		int numCols = _game.masterWorldWidth / BLOCK_SIZE;
 		int numRows = _game.masterWorldHeight / BLOCK_SIZE;
 

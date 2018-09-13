@@ -1,7 +1,7 @@
-package com.austinauts.libgdx.common.utils;
+package com.austinauts.libgdx.modules.tilemap.tilemap.utils;
 
-import com.austinauts.libgdx.common.tilemap.Tile;
-import com.austinauts.libgdx.common.tilemap.TileType;
+import com.austinauts.libgdx.modules.tilemap.tilemap.Tile;
+import com.austinauts.libgdx.modules.tilemap.tilemap.TileType;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;

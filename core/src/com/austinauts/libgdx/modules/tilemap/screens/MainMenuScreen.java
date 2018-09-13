@@ -1,10 +1,10 @@
-package com.austinauts.libgdx.modules.tileengine.screens;
+package com.austinauts.libgdx.modules.tilemap.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
 import com.austinauts.libgdx.common.screens.BaseMainMenuScreen;
 
 public class MainMenuScreen extends BaseMainMenuScreen {
-	private final static String WELCOME_TEXT = "Tile Engine Demo";
+	private final static String WELCOME_TEXT = "Tile Map Generation Demo";
 	private final static String CLICK_TO_BEGIN_TEXT = "Touch to begin";
 
 	public MainMenuScreen(final AustinautsGame game) {

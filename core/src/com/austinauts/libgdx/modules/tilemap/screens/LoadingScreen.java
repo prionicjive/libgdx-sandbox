@@ -1,4 +1,4 @@
-package com.austinauts.libgdx.modules.tileengine.screens;
+package com.austinauts.libgdx.modules.tilemap.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
 import com.badlogic.gdx.assets.loaders.resolvers.InternalFileHandleResolver;
