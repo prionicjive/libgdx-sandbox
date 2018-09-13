@@ -118,7 +118,11 @@ public class GameScreen extends ScreenAdapter {
 			public boolean keyDown(int key) {
 				if (key == Input.Keys.SPACE) {
 					procGenMap.iterateMap(false);
-					;
+					procGenMap.resetRenderLayer(false);
+					return true;
+				}
+				if (key == Input.Keys.ENTER) {
+					procGenMap.iterateMap(true);
 					procGenMap.resetRenderLayer(false);
 					return true;
 				}
