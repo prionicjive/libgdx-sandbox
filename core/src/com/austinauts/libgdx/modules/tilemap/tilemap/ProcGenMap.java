@@ -31,7 +31,8 @@ public class ProcGenMap {
 	private final TextureRegion[][] splitPalette;
 
 	// TODO Need to either be passed to the constructor
-	private final int initialChanceOfWall;
+	private int initialChanceOfWall = 45;
+
 	private final int birthThreshold = 5;
 	private final int surviveThreshold = 4;
 	private final int largeSpaceThreshold = 2;
@@ -48,6 +49,7 @@ public class ProcGenMap {
 
 	private Array<Array<Vector2>> chambers;
 	private Array<Vector2> centralChamber;
+	private int centralChamberId;
 	private TiledMapRenderer tileMapRenderer;
 
 	public ProcGenMap(int numCols, int numRows, int initialChanceOfTile, int tileSize, TextureRegion[][] splitTiles, TextureRegion[][] splitPalette) {
@@ -389,6 +391,9 @@ public class ProcGenMap {
 	}
 
 	private void connectAllChambers(Array<Array<Vector2>> chambersToConnect, Array<Vector2> largestChamber) {
+		Vector2 firstCoordInLargestChamber = largestChamber.get(0);
+		int largestChamberId = procGenMap[(int) firstCoordInLargestChamber.y][(int) firstCoordInLargestChamber.x].associatedChamber;
+
 		for (Array<Vector2> chamber : chambersToConnect) {
 			// If the current chamber is really the largest chamber, skip it
 			if (chamber == largestChamber) {
@@ -408,7 +413,7 @@ public class ProcGenMap {
 			if (calculatedPath != null) {
 				for (Vector2 currCoord : calculatedPath) {
 					procGenMap[(int) currCoord.y][(int) currCoord.x].type = TileType.EMPTY;
-					procGenMap[(int) currCoord.y][(int) currCoord.x].associatedChamber = 15;
+					procGenMap[(int) currCoord.y][(int) currCoord.x].associatedChamber = largestChamberId;
 				}
 			}
 		}

@@ -60,7 +60,6 @@ public class GameScreen extends ScreenAdapter {
 //		// Lastly, create our special tile map renderer!
 //		tileMapRenderer = new OrthogonalTiledMapRenderer(tileMap);
 
-
 		// Divide up the individual sprites in the sprite sheet
 		splitTiles = TextureRegion.split(_game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_TILESET, Texture.class), BLOCK_SIZE, BLOCK_SIZE);
 		splitPalette = TextureRegion.split(_game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_PALETTE, Texture.class), BLOCK_SIZE, BLOCK_SIZE);
