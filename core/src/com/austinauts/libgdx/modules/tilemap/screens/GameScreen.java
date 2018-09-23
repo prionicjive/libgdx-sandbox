@@ -10,6 +10,9 @@ import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.maps.tiled.TiledMap;
+import com.badlogic.gdx.maps.tiled.TiledMapRenderer;
+import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.TimeUtils;
 
@@ -30,6 +33,13 @@ public class GameScreen extends ScreenAdapter {
 
 	private BitmapFont bigFont;
 	private BitmapFont smallFont;
+
+	// --------------------------
+	// Used for static timemap
+	// --------------------------
+	private boolean showStatic;
+	private TiledMap tileMap;
+	private TiledMapRenderer tileMapRenderer;
 
 	// ------------------------
 	// Variable for map generation
@@ -55,10 +65,10 @@ public class GameScreen extends ScreenAdapter {
 		// -------------------------------------
 
 //		// Get our tilemap from the asset manager
-//		tileMap = _game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_MAP);
-//
+		tileMap = _game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_MAP);
+
 //		// Lastly, create our special tile map renderer!
-//		tileMapRenderer = new OrthogonalTiledMapRenderer(tileMap);
+		tileMapRenderer = new OrthogonalTiledMapRenderer(tileMap);
 
 		// Divide up the individual sprites in the sprite sheet
 		splitTiles = TextureRegion.split(_game.assetManager.get(AustinautsGame.TILEMAP_SAMPLE_TILESET, Texture.class), BLOCK_SIZE, BLOCK_SIZE);
@@ -96,9 +106,14 @@ public class GameScreen extends ScreenAdapter {
 		Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT);
 
 		// Render the tilemap
-		// TODO Have as part of the tilemap?
-		procGenMap.getTileMapRenderer().setView(_game.camera);
-		procGenMap.getTileMapRenderer().render();
+		if (showStatic) {
+			tileMapRenderer.setView(_game.camera);
+			tileMapRenderer.render();
+		}
+		else {
+			procGenMap.getTileMapRenderer().setView(_game.camera);
+			procGenMap.getTileMapRenderer().render();
+		}
 
 		_game.batch.begin();
 
@@ -162,6 +177,11 @@ public class GameScreen extends ScreenAdapter {
 				else if (key == Input.Keys.ESCAPE) {
 					generateNewLevel();
 
+					return true;
+				}
+				// Show just static map
+				else if (key == Input.Keys.F1) {
+					showStatic = !showStatic;
 					return true;
 				}
 
