@@ -4,6 +4,8 @@ import com.austinauts.libgdx.AustinautsGame;
 import com.austinauts.libgdx.common.loaders.ParticleEmitterSettings;
 import com.austinauts.libgdx.common.particles.ParticleEmitter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.Texture;
@@ -25,6 +27,11 @@ public class GameScreen extends ScreenAdapter  {
 
 	public GameScreen(final AustinautsGame game) {
 		_game = game;
+
+		// ---------------------------------
+		// Set up systems
+		// --------------------------------
+		initializeInputProcessor();
 
 		// -------------------------------------
 		// Set up scratch variables
@@ -77,4 +84,19 @@ public class GameScreen extends ScreenAdapter  {
 	// ------------------------
 	// Private methods
 	// ------------------------
+
+	private void initializeInputProcessor() {
+		// TODO Put InputProcessing in another place?
+		Gdx.input.setInputProcessor(new InputAdapter() {
+			public boolean keyDown(int key) {
+				if (key == Input.Keys.SPACE) {
+					trailEmitter.paused = !trailEmitter.paused;
+
+					return true;
+				}
+
+				return false;
+			}
+		});
+	}
 }

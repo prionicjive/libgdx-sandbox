@@ -4,6 +4,7 @@ import com.austinauts.libgdx.common.loaders.ParticleEmitterSettings;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 
 import java.util.Iterator;
@@ -19,6 +20,9 @@ public class ParticleEmitter {
 	private float accum;
 
 	public Vector2 position;
+	public BoundingBox bounds;
+
+	public boolean paused;
 
 	public ParticleEmitter(Texture texture, ParticleEmitterSettings settings) {
 		this(texture, settings, new Vector2(0f, 0f));
@@ -30,6 +34,7 @@ public class ParticleEmitter {
 
 		activeParticles = new Array<>(false, maxActiveParticles);
 		deadPool = new Array<>(false, maxActiveParticles);
+		paused = false;
 
 		// Pool the emitters
 		for (int i = 0; i < maxActiveParticles; i++) {
@@ -48,7 +53,9 @@ public class ParticleEmitter {
 		if (accum >= 1f / emitPerSecond) {
 			accum -= (1f / emitPerSecond);
 
-			emitParticle();
+			if (!paused) {
+				emitParticle();
+			}
 		}
 
 		Iterator<Particle> iter = activeParticles.iterator();
