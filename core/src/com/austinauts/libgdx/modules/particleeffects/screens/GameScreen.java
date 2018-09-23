@@ -1,9 +1,12 @@
 package com.austinauts.libgdx.modules.particleeffects.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
+import com.austinauts.libgdx.common.loaders.ParticleEmitterSettings;
+import com.austinauts.libgdx.common.particles.ParticleEmitter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.GL30;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.ParticleEffect;
 
 public class GameScreen extends ScreenAdapter  {
@@ -14,6 +17,7 @@ public class GameScreen extends ScreenAdapter  {
 	// Game Entities
 	// --------------------
 	private ParticleEffect defaultEffect;
+	private ParticleEmitter trailEmitter;
 
 	// --------------------
 	// Scratch variables
@@ -32,6 +36,10 @@ public class GameScreen extends ScreenAdapter  {
 		defaultEffect = _game.assetManager.get(AustinautsGame.PARTICLE_EFFECT_DEFAULT);
 		defaultEffect.start();
 		defaultEffect.setPosition(100,  100);
+
+		ParticleEmitterSettings settings = _game.json.fromJson(ParticleEmitterSettings.class, Gdx.files.internal(AustinautsGame.CONFIG_PARTICLE_TRAIL));
+		trailEmitter = new ParticleEmitter(_game.assetManager.get(AustinautsGame.TEXTURE_PARTICLE, Texture.class), settings);
+		trailEmitter.reset();
 	}
 
 	@Override
@@ -49,10 +57,14 @@ public class GameScreen extends ScreenAdapter  {
 		_game.camera.update();
 
 		// TODO Update entities
+		trailEmitter.position.set(Gdx.input.getX(), _game.masterWorldHeight - Gdx.input.getY());
+		trailEmitter.update(delta);
 
 		// Clear the backbuffer (Dark blue-green)
 		Gdx.gl30.glClearColor(0, 0.15f, 0.2f, 1);
 		Gdx.gl30.glClear(GL30.GL_COLOR_BUFFER_BIT);
+
+		trailEmitter.render(_game.batch);
 
 		_game.batch.begin();
 		{

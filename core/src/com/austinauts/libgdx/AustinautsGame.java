@@ -16,6 +16,8 @@ import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.ArrayMap;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
+import com.badlogic.gdx.utils.Json;
+import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -32,12 +34,17 @@ public class AustinautsGame extends Game {
 	public final static String TILEMAP_SAMPLE_MAP = "tilemaps/test.tmx";
 
 	public final static String PARTICLE_EFFECT_DEFAULT = "particleeffects/default.pfxd";
+	public static final String CONFIG_PARTICLE_TRAIL = "particleeffects/trail.json";
 
 	//public final static String MUSIC_TRACK = "music/retrace_the_circle.mp3";
 
 	// TODO Using asset manager correctly?
 	// Our AssetManager! Very important!
 	public AssetManager assetManager;
+
+	// JSON and settings related
+	public Json json;
+	public JsonReader jsonReader;
 
 	// Box2D
 	public World world;
@@ -74,6 +81,10 @@ public class AustinautsGame extends Game {
 
 		// Set up the asset manager
 		assetManager = new AssetManager();
+
+		// Set up the JSON reader
+		json = new Json();
+		jsonReader = new JsonReader();
 
 		Box2D.init();
 		box2DDebugRenderer = new Box2DDebugRenderer();
