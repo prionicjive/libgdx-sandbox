@@ -1,6 +1,6 @@
 package com.austinauts.libgdx;
 
-import com.austinauts.libgdx.modules.tilemap.screens.LoadingScreen;
+import com.austinauts.libgdx.modules.particleeffects.screens.LoadingScreen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.assets.AssetManager;
@@ -30,6 +30,8 @@ public class AustinautsGame extends Game {
 	public final static String TILEMAP_SAMPLE_TILESET = "tilemaps/tiles.png";
 	public final static String TILEMAP_SAMPLE_PALETTE = "tilemaps/palette.png";
 	public final static String TILEMAP_SAMPLE_MAP = "tilemaps/test.tmx";
+
+	public final static String PARTICLE_EFFECT_DEFAULT = "particleeffects/default.pfxd";
 
 	//public final static String MUSIC_TRACK = "music/retrace_the_circle.mp3";
 

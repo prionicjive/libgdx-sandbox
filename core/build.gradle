@@ -11,7 +11,6 @@ dependencies {
     compile "com.badlogicgames.gdx:gdx-controllers:$gdxVersion"
     compile "com.strongjoshua:libgdx-inGameConsole:$inGameConsoleVersion"
     compile "net.dermetfan.libgdx-utils:libgdx-utils-box2d:$utilsBox2dVersion"
-    compile "com.github.czyzby:gdx-kiwi:$kiwiVersion.$gdxVersion"
-
+    
     compile fileTree(dir: '../libs', include: '*.jar')
 }
