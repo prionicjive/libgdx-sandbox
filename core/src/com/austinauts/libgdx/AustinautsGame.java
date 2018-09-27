@@ -33,8 +33,7 @@ public class AustinautsGame extends Game {
 	public final static String TILEMAP_SAMPLE_PALETTE = "tilemaps/palette.png";
 	public final static String TILEMAP_SAMPLE_MAP = "tilemaps/test.tmx";
 
-	public final static String PARTICLE_EFFECT_DEFAULT = "particleeffects/default.pfxd";
-	public static final String CONFIG_PARTICLE_TRAIL = "particleeffects/trail.json";
+	public static final String CONFIG_EFFECTS_TRAIL = "particleeffects/trail.json";
 
 	//public final static String MUSIC_TRACK = "music/retrace_the_circle.mp3";
 

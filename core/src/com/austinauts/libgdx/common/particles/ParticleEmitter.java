@@ -1,6 +1,6 @@
 package com.austinauts.libgdx.common.particles;
 
-import com.austinauts.libgdx.common.loaders.ParticleEmitterSettings;
+import com.austinauts.libgdx.common.loaders.ParticleEffectSettings;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
@@ -11,26 +11,31 @@ import java.util.Iterator;
 
 // TODO Have EmitterTemplate that can drive what kind of Continuous Emitter to be
 public class ParticleEmitter {
-	private int maxActiveParticles;
-	private int emitPerSecond;
+	public String name;
+	public Vector2 position;
+	public int maxActiveParticles;
+	public int emitPerSecond;
+	public int ttl;
+	public int age;
 
 	private Array<Particle> activeParticles;
 	private Array<Particle> deadPool;
 
 	private float accum;
-
-	public Vector2 position;
 	public BoundingBox bounds;
 
 	public boolean paused;
 
-	public ParticleEmitter(Texture texture, ParticleEmitterSettings settings) {
-		this(texture, settings, new Vector2(0f, 0f));
+	public ParticleEmitter(Texture texture, ParticleEmitterTemplate template) {
+		this(texture, template, new Vector2(0f, 0f));
 	}
 
-	public ParticleEmitter(Texture texture, ParticleEmitterSettings settings, Vector2 position) {
-		maxActiveParticles = settings.maxActiveParticles;
-		emitPerSecond = settings.emitPerSecond;
+	public ParticleEmitter(Texture texture, ParticleEmitterTemplate template, Vector2 position) {
+		name = template.name;
+		maxActiveParticles = template.maxActiveParticles;
+		emitPerSecond = template.emitPerSecond;
+		ttl = template.ttl;
+		age = 0;
 
 		activeParticles = new Array<>(false, maxActiveParticles);
 		deadPool = new Array<>(false, maxActiveParticles);
@@ -38,7 +43,7 @@ public class ParticleEmitter {
 
 		// Pool the emitters
 		for (int i = 0; i < maxActiveParticles; i++) {
-			Particle p = new Particle(texture, settings.particleTemplate);
+			Particle p = new Particle(texture, template.particleTemplate);
 			deadPool.add(p);
 		}
 

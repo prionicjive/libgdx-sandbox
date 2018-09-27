@@ -10,7 +10,6 @@ public class LoadingScreen extends BaseLoadingScreen {
 		super(game);
 
 		// Tell the asset manager what needs to be loaded
-		_game.assetManager.load(AustinautsGame.PARTICLE_EFFECT_DEFAULT, ParticleEffect.class);
 		_game.assetManager.load(AustinautsGame.TEXTURE_PARTICLE, Texture.class);
 	}
 
