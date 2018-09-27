@@ -1,6 +1,5 @@
 package com.austinauts.libgdx.common.particles;
 
-import com.austinauts.libgdx.common.loaders.ParticleEffectSettings;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
@@ -17,6 +16,8 @@ public class ParticleEmitter {
 	public int emitPerSecond;
 	public int ttl;
 	public int age;
+	public boolean isFinishing;
+	public boolean done;
 
 	private Array<Particle> activeParticles;
 	private Array<Particle> deadPool;
@@ -36,6 +37,8 @@ public class ParticleEmitter {
 		emitPerSecond = template.emitPerSecond;
 		ttl = template.ttl;
 		age = 0;
+		isFinishing = false;
+		done = false;
 
 		activeParticles = new Array<>(false, maxActiveParticles);
 		deadPool = new Array<>(false, maxActiveParticles);
@@ -52,43 +55,49 @@ public class ParticleEmitter {
 	}
 
 	public void update(float delta) {
-		// Emit if need be
-		accum += delta;
+		if (!paused && !done) {
+			// Emit if need be
+			accum += delta;
 
-		if (accum >= 1f / emitPerSecond) {
-			accum -= (1f / emitPerSecond);
+			if (accum >= 1f / emitPerSecond) {
+				accum -= (1f / emitPerSecond);
 
-			if (!paused) {
-				emitParticle();
+				// Only emit if we are not in the phase of finishing
+				if (!isFinishing) {
+					emitParticle();
+				}
 			}
-		}
 
-		Iterator<Particle> iter = activeParticles.iterator();
+			Iterator<Particle> iter = activeParticles.iterator();
 
-		while (iter.hasNext()) {
-			Particle curr = iter.next();
-			curr.update(delta);
+			while (iter.hasNext()) {
+				Particle curr = iter.next();
+				curr.update(delta);
 
-			if (!curr.alive()) {
-				iter.remove();
-				deadPool.add(curr);
+				if (!curr.alive()) {
+					iter.remove();
+					deadPool.add(curr);
+				}
 			}
 		}
 	}
 
 	// TODO Unify with update so no need to loop multiple times?
 	public void render(SpriteBatch batch) {
-		// TODO Establish a certain blend func?
-		batch.begin();
-		{
-			for (int i = 0; i < activeParticles.size; i++) {
-				Particle curr = activeParticles.get(i);
+		// Only render if we are NOT done
+		if (!done) {
+			// TODO Establish a certain blend func?
+			batch.begin();
+			{
+				for (int i = 0; i < activeParticles.size; i++) {
+					Particle curr = activeParticles.get(i);
 
-				batch.setColor(curr.sprite.getColor());
-				batch.draw(curr.sprite.getTexture(), curr.sprite.getX(), curr.sprite.getY(), curr.sprite.getWidth(), curr.sprite.getHeight());
+					batch.setColor(curr.sprite.getColor());
+					batch.draw(curr.sprite.getTexture(), curr.sprite.getX(), curr.sprite.getY(), curr.sprite.getWidth(), curr.sprite.getHeight());
+				}
 			}
+			batch.end();
 		}
-		batch.end();
 	}
 
 	public void reset() {

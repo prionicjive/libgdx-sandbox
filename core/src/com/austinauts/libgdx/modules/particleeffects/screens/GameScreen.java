@@ -94,6 +94,17 @@ public class GameScreen extends ScreenAdapter {
 					return true;
 				}
 
+				if (key == Input.Keys.ESCAPE) {
+					trailEffect.instaKill();
+
+					return true;
+				}
+
+				if (key == Input.Keys.SHIFT_LEFT) {
+					trailEffect.lazyKill();
+					return true;
+				}
+
 				return false;
 			}
 		});

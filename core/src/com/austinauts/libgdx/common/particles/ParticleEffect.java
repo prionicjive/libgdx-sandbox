@@ -42,6 +42,11 @@ public class ParticleEffect {
 	}
 
 	public void update(float delta) {
+		age += delta;
+
+		if (age >= ttl) {
+			// TODO Do something? Instakill or lazy kill?
+		}
 		// No need to update if paused
 		if (!paused) {
 			for (int i = 0, n = emitters.size; i < n; i++) {
@@ -53,6 +58,18 @@ public class ParticleEffect {
 	public void render(SpriteBatch spriteBatch) {
 		for (int i = 0, n = emitters.size; i < n; i++) {
 			emitters.get(i).render(spriteBatch);
+		}
+	}
+
+	public void lazyKill() {
+		for (int i = 0, n = emitters.size; i < n; i++) {
+			emitters.get(i).isFinishing = true;
+		}
+	}
+
+	public void instaKill() {
+		for (int i = 0, n = emitters.size; i < n; i++) {
+			emitters.get(i).done = true;
 		}
 	}
 
@@ -80,11 +97,14 @@ public class ParticleEffect {
 		}
 	}
 
-	public boolean isComplete() {
+	public boolean isDone() {
 		for (int i = 0, n = emitters.size; i < n; i++) {
-//			ParticleEmitter emitter = emitters.get(i);
-//			if (!emitter.isComplete()) return false;
+			ParticleEmitter emitter = emitters.get(i);
+			if (!emitter.done) {
+				return false;
+			}
 		}
+
 		return true;
 	}
 }
