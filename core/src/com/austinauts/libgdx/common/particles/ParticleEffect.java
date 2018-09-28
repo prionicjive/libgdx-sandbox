@@ -9,16 +9,22 @@ import com.badlogic.gdx.utils.Array;
 public class ParticleEffect {
 	public String name;
 	private Vector2 position;
+
+	public boolean continuous;
 	public int ttl;
 	public int age;
+
 	public boolean paused;
 	private final Array<ParticleEmitter> emitters;
 
 	public ParticleEffect(Texture texture, ParticleEffectSettings settings) {
 		name = settings.name;
 		position = new Vector2();
+
+		continuous = settings.continuous;
 		ttl = settings.ttl;
 		age = 0;
+
 		emitters = new Array<>();
 
 		// Set up each emitter
@@ -42,11 +48,14 @@ public class ParticleEffect {
 	}
 
 	public void update(float delta) {
-		age += delta;
+		if (!continuous) {
+			age += delta;
 
-		if (age >= ttl) {
-			// TODO Do something? Instakill or lazy kill?
+			if (age >= ttl) {
+				// TODO To kill or not to kill
+			}
 		}
+
 		// No need to update if paused
 		if (!paused) {
 			for (int i = 0, n = emitters.size; i < n; i++) {

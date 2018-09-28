@@ -1,10 +1,13 @@
 {
   "name": "trail",
+  "continuous": true,
+  "ttl": -1,
   "emitterTemplates": [
     {
       "name": "trail",
       "maxActiveParticles": 250,
       "emitPerSecond": 50,
+      "continuous": true,
       "ttl": -1,
       "particleTemplate": {
         "ttl": 1.5,

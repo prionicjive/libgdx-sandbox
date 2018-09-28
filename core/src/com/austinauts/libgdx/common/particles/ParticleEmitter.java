@@ -14,8 +14,11 @@ public class ParticleEmitter {
 	public Vector2 position;
 	public int maxActiveParticles;
 	public int emitPerSecond;
+
+	public boolean continuous;
 	public int ttl;
 	public int age;
+
 	public boolean isFinishing;
 	public boolean done;
 
@@ -35,8 +38,11 @@ public class ParticleEmitter {
 		name = template.name;
 		maxActiveParticles = template.maxActiveParticles;
 		emitPerSecond = template.emitPerSecond;
+
+		continuous = template.continuous;
 		ttl = template.ttl;
 		age = 0;
+
 		isFinishing = false;
 		done = false;
 
@@ -58,6 +64,14 @@ public class ParticleEmitter {
 		if (!paused && !done) {
 			// Emit if need be
 			accum += delta;
+
+			if (!continuous) {
+				age += delta;
+
+				if (age >= ttl) {
+					// TODO To kill or not to kill
+				}
+			}
 
 			if (accum >= 1f / emitPerSecond) {
 				accum -= (1f / emitPerSecond);
