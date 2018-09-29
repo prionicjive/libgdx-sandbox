@@ -11,6 +11,7 @@ public class ParticleEffect {
 	private Vector2 position;
 
 	public boolean continuous;
+	public boolean instaKill;
 	public int ttl;
 	public int age;
 
@@ -22,6 +23,7 @@ public class ParticleEffect {
 		position = new Vector2();
 
 		continuous = settings.continuous;
+		instaKill = settings.instaKill;
 		ttl = settings.ttl;
 		age = 0;
 
@@ -51,8 +53,14 @@ public class ParticleEffect {
 		if (!continuous) {
 			age += delta;
 
+			// TODO Might have more complex death state...
 			if (age >= ttl) {
-				// TODO To kill or not to kill
+				if (instaKill) {
+					instaKill();
+				}
+				else {
+					lazyKill();
+				}
 			}
 		}
 

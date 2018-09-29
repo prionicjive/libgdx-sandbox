@@ -6,6 +6,7 @@ import com.badlogic.gdx.utils.Array;
 public class ParticleEffectSettings {
 	public String name;
 	public boolean continuous;
+	public boolean instaKill;
 	public int ttl;
 
 	public Array<ParticleEmitterTemplate> emitterTemplates;

@@ -16,6 +16,7 @@ public class ParticleEmitter {
 	public int emitPerSecond;
 
 	public boolean continuous;
+	public boolean instaKill;
 	public int ttl;
 	public int age;
 
@@ -40,6 +41,7 @@ public class ParticleEmitter {
 		emitPerSecond = template.emitPerSecond;
 
 		continuous = template.continuous;
+		instaKill = template.instaKill;
 		ttl = template.ttl;
 		age = 0;
 

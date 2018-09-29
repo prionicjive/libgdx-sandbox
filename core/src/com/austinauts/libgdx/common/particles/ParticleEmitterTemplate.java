@@ -5,6 +5,7 @@ public class ParticleEmitterTemplate {
 	public int maxActiveParticles;
 	public int emitPerSecond;
 	public boolean continuous;
+	public boolean instaKill;
 	public int ttl;
 
 	public ParticleTemplate particleTemplate;

@@ -1,16 +1,18 @@
 {
   "name": "trail",
   "continuous": true,
+  "instaKill": false,
   "ttl": -1,
   "emitterTemplates": [
     {
       "name": "trail",
       "maxActiveParticles": 250,
       "emitPerSecond": 50,
-      "continuous": true,
-      "ttl": -1,
+      "continuous": false,
+      "ttl": 3,
+      "instaKill": false,
       "particleTemplate": {
-        "ttl": 1.5,
+        "ttl": -1,
         "startColor": {
           "r": 0.4,
           "g": 0.9,
