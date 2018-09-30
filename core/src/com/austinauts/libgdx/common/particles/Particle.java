@@ -48,8 +48,8 @@ public class Particle {
 		endSpeed = template.endSpeed;
 		interpolatedSpeed = startSpeed;
 
-		startDirection = new Vector2(template.startDirection).nor();
-		endDirection = new Vector2(template.endDirection).nor();
+		startDirection = new Vector2(template.startDirection).nor().scl(-1f); // TODO Flip to have positive y go "up" on screen
+		endDirection = new Vector2(template.endDirection).nor().scl(-1f); // TODO Flip to have positive y go "up" on screen
 		interpolatedDirection = new Vector2(startDirection);
 
 		ttl = template.ttl;
