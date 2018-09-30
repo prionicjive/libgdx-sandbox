@@ -13,9 +13,10 @@ public class Particle {
 	public Color startColor, endColor, interpolatedColor;
 	public Vector3 scratchColorValues;
 	public float scratchAlphaValue; // Store these as {start, end, tweenequation}?
+	public Vector2 scratchVec;
 	public FloatDimension startSize, endSize, interpolatedSize;
-	public float speed;
-	public Vector2 direction;
+	public float startSpeed, endSpeed, interpolatedSpeed;
+	public Vector2 startDirection, endDirection, interpolatedDirection;
 	public float age, ttl;
 
 	public Particle(Texture texture, ParticleTemplate template) {
@@ -36,11 +37,21 @@ public class Particle {
 		interpolatedColor = new Color(startColor);
 		scratchColorValues = new Vector3();
 		scratchAlphaValue = 1.0f;
+
+		scratchVec = new Vector2();
+
 		startSize = new FloatDimension(template.startSize);
 		endSize = new FloatDimension(template.endSize);
 		interpolatedSize = new FloatDimension(startSize);
-		speed = template.speed;
-		direction = template.direction;
+
+		startSpeed = template.startSpeed;
+		endSpeed = template.endSpeed;
+		interpolatedSpeed = startSpeed;
+
+		startDirection = new Vector2(template.startDirection).nor();
+		endDirection = new Vector2(template.endDirection).nor();
+		interpolatedDirection = new Vector2(startDirection);
+
 		ttl = template.ttl;
 		age = 0;
 	}
@@ -48,18 +59,22 @@ public class Particle {
 	public void reset() {
 		sprite.setColor(startColor);
 		interpolatedColor.set(startColor);
+
 		sprite.setSize(startSize.width, startSize.height);
+
 		interpolatedSize.set(startSize);
+
+		interpolatedSpeed = startSpeed;
+
+		interpolatedDirection.set(startDirection);
+
 		age = 0;
 	}
 
 	public void update(float delta) {
 		age += delta;
-
-		sprite.translate(direction.x * speed * delta, direction.y * speed * delta);
-
+		
 		// Adjust color
-
 		float redDelta = ((endColor.r - startColor.r) / ttl) * delta;
 		float greenDelta = ((endColor.g - startColor.g) / ttl) * delta;
 		float blueDelta = ((endColor.b - startColor.b) / ttl) * delta;
@@ -71,6 +86,12 @@ public class Particle {
 		interpolatedSize.width = (endSize.width - startSize.width) / ttl * delta;
 		interpolatedSize.height = (endSize.height - startSize.height) / ttl * delta;
 		sprite.setSize(sprite.getWidth() + interpolatedSize.width, sprite.getHeight() + interpolatedSize.width);
+	
+		// Adjust speed and direction
+		interpolatedSpeed = (endSpeed - startSpeed) / ttl * delta;
+		interpolatedDirection.x += (endDirection.x - startDirection.x) / ttl * delta;
+		interpolatedDirection.y += (endDirection.y - startDirection.y) / ttl * delta;
+		sprite.translate(interpolatedDirection.x * interpolatedSpeed, interpolatedDirection.y * interpolatedSpeed);
 	}
 
 	public boolean alive() {

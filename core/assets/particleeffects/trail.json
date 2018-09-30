@@ -1,6 +1,6 @@
 {
   "name": "trail",
-  "continuous": false,
+  "continuous": true,
   "instaKill": false,
   "ttl": 3,
   "emitterTemplates": [
@@ -8,7 +8,7 @@
       "name": "trail",
       "maxActiveParticles": 250,
       "emitPerSecond": 50,
-      "continuous": false,
+      "continuous": true,
       "ttl": 3,
       "instaKill": false,
       "particleTemplate": {
@@ -20,9 +20,9 @@
           "a": 1
         },
         "endColor": {
-          "r": 0.4,
-          "g": 0.9,
-          "b": 0.7,
+          "r": 1.0,
+          "g": 0.3,
+          "b": 0.69,
           "a": 0
         },
         "startSize": {
@@ -32,6 +32,16 @@
         "endSize": {
           "width": 4.0,
           "height": 4.0
+        },
+        "startSpeed": 200,
+        "endSpeed": 0,
+        "startDirection": {
+          "x": 0.78,
+          "y": 0.23
+        },
+        "endDirection": {
+          "x": 1,
+          "y": 1
         }
       }
     }

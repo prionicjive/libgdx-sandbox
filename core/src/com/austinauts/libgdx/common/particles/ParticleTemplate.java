@@ -8,8 +8,8 @@ public class ParticleTemplate {
 	public Color startColor, endColor;
 	public FloatDimension startSize, endSize;
 	public float ttl;
-	public float speed;
-	public Vector2 direction;
+	public float startSpeed, endSpeed;
+	public Vector2 startDirection, endDirection;
 
 	public ParticleTemplate() {
 		// TODO CLAMP!!!!!!!!!!!!
@@ -18,7 +18,9 @@ public class ParticleTemplate {
 		startSize = new FloatDimension(16f, 16f);
 		endSize = new FloatDimension(16f, 16f);
 		ttl = 1;
-		speed = 10;
-		direction = new Vector2(0, 0f);
+		startSpeed = 0f;
+		endSpeed = 0f;
+		startDirection = new Vector2(0f, 0f);
+		endDirection = new Vector2(0f, 0f);
 	}
 }
