@@ -1,8 +1,8 @@
 {
   "name": "trail",
-  "continuous": true,
+  "continuous": false,
   "instaKill": false,
-  "ttl": -1,
+  "ttl": 3,
   "emitterTemplates": [
     {
       "name": "trail",
@@ -12,7 +12,7 @@
       "ttl": 3,
       "instaKill": false,
       "particleTemplate": {
-        "ttl": -1,
+        "ttl": 4,
         "startColor": {
           "r": 0.4,
           "g": 0.9,

@@ -10,10 +10,12 @@ public class ParticleEffect {
 	public String name;
 	private Vector2 position;
 
+	public boolean isFinishing;
+	public boolean done;
 	public boolean continuous;
 	public boolean instaKill;
-	public int ttl;
-	public int age;
+	public float ttl;
+	public float age;
 
 	public boolean paused;
 	private final Array<ParticleEmitter> emitters;
@@ -50,24 +52,27 @@ public class ParticleEffect {
 	}
 
 	public void update(float delta) {
-		if (!continuous) {
-			age += delta;
+		if (!done) {
+			if (!continuous) {
+				age += delta;
 
-			// TODO Might have more complex death state...
-			if (age >= ttl) {
-				if (instaKill) {
-					instaKill();
-				}
-				else {
-					lazyKill();
+				// TODO Might have more complex death state...
+				if (age >= ttl) {
+					if (instaKill) {
+						instaKill();
+						return; // Nothing further to update
+					}
+					else {
+						lazyKill();
+					}
 				}
 			}
-		}
 
-		// No need to update if paused
-		if (!paused) {
-			for (int i = 0, n = emitters.size; i < n; i++) {
-				emitters.get(i).update(delta);
+			// No need to update if paused
+			if (!paused) {
+				for (int i = 0, n = emitters.size; i < n; i++) {
+					emitters.get(i).update(delta);
+				}
 			}
 		}
 	}
@@ -80,14 +85,18 @@ public class ParticleEffect {
 
 	public void lazyKill() {
 		for (int i = 0, n = emitters.size; i < n; i++) {
-			emitters.get(i).isFinishing = true;
+			emitters.get(i).lazyKill();
 		}
+
+		isFinishing = true;
 	}
 
 	public void instaKill() {
 		for (int i = 0, n = emitters.size; i < n; i++) {
-			emitters.get(i).done = true;
+			emitters.get(i).instaKill();
 		}
+
+		done = true;
 	}
 
 	public ParticleEmitter findEmitter(String name) {

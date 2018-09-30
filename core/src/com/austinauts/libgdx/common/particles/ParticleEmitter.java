@@ -17,8 +17,8 @@ public class ParticleEmitter {
 
 	public boolean continuous;
 	public boolean instaKill;
-	public int ttl;
-	public int age;
+	public float ttl;
+	public float age;
 
 	public boolean isFinishing;
 	public boolean done;
@@ -71,7 +71,13 @@ public class ParticleEmitter {
 				age += delta;
 
 				if (age >= ttl) {
-					// TODO To kill or not to kill
+					if (instaKill) {
+						instaKill();
+						return; // Nothing further to update
+					}
+					else {
+						lazyKill();
+					}
 				}
 			}
 
@@ -124,6 +130,14 @@ public class ParticleEmitter {
 			iter.remove();
 			deadPool.add(curr);
 		}
+	}
+
+	public void lazyKill() {
+		isFinishing = true;
+	}
+
+	public void instaKill() {
+		done = true;
 	}
 
 	private void emitParticle() {
