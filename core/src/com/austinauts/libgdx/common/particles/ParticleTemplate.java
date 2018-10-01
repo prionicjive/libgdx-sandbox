@@ -20,7 +20,6 @@ public class ParticleTemplate {
 		ttl = 1;
 		startSpeed = 0f;
 		endSpeed = 0f;
-		startDirection = new Vector2(0f, 0f);
-		endDirection = new Vector2(0f, 0f);
+
 	}
 }

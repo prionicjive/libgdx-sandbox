@@ -88,10 +88,10 @@ public class Particle {
 		sprite.setSize(sprite.getWidth() + interpolatedSize.width, sprite.getHeight() + interpolatedSize.width);
 	
 		// Adjust speed and direction
-		interpolatedSpeed = (endSpeed - startSpeed) / ttl * delta;
+		interpolatedSpeed += ((endSpeed - startSpeed) / ttl) * delta;
 		interpolatedDirection.x += (endDirection.x - startDirection.x) / ttl * delta;
 		interpolatedDirection.y += (endDirection.y - startDirection.y) / ttl * delta;
-		sprite.translate(interpolatedDirection.x * interpolatedSpeed, interpolatedDirection.y * interpolatedSpeed);
+		sprite.translate(interpolatedDirection.x * interpolatedSpeed * delta, interpolatedDirection.y * interpolatedSpeed * delta);
 	}
 
 	public boolean alive() {

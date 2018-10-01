@@ -2,6 +2,7 @@ package com.austinauts.libgdx.common.particles;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
@@ -17,6 +18,11 @@ public class ParticleEmitter {
 
 	public boolean continuous;
 	public boolean instaKill;
+
+	public Vector2 emitDirection;
+	public float emitSpreadAngle;
+	public float emitRotateAnglePerSecond;
+
 	public float ttl;
 	public float age;
 
@@ -42,6 +48,12 @@ public class ParticleEmitter {
 
 		continuous = template.continuous;
 		instaKill = template.instaKill;
+
+		// TODO Why should we have to invert the direction?
+		emitDirection = template.emitDirection.nor().scl(-1f);
+		emitSpreadAngle = template.emitSpreadAngle;
+		emitRotateAnglePerSecond = template.emitRotateAnglePerSecond;
+
 		ttl = template.ttl;
 		age = 0;
 
@@ -55,6 +67,10 @@ public class ParticleEmitter {
 		// Pool the emitters
 		for (int i = 0; i < maxActiveParticles; i++) {
 			Particle p = new Particle(texture, template.particleTemplate);
+
+			// Update anything that might be needed on particle emission
+			prepareParticle(p);
+
 			deadPool.add(p);
 		}
 
@@ -64,6 +80,8 @@ public class ParticleEmitter {
 
 	public void update(float delta) {
 		if (!paused && !done) {
+			// No matter what, rotate the emitter
+			emitDirection.rotate(emitRotateAnglePerSecond * delta);
 			// Emit if need be
 			accum += delta;
 
@@ -146,7 +164,18 @@ public class ParticleEmitter {
 			Particle emit = deadPool.removeIndex(0);
 			emit.reset();
 			emit.sprite.setPosition(position.x, position.y);
+
+			// Update anything that might be needed on particle emission
+			prepareParticle(emit);
+
 			activeParticles.add(emit);
 		}
+	}
+
+	private void prepareParticle(Particle particleToPrepare) {
+		// Update anything that might be needed on particle emission
+		// Treat direct as a normal, meaning have of the spread will be on 1 side and the other half on the other side
+		particleToPrepare.startDirection.set(emitDirection).rotate(emitSpreadAngle / -2f).rotate(MathUtils.random(emitSpreadAngle));
+		//	particleToPrepare.endDirection = particleToPrepare.startDirection;
 	}
 }

@@ -6,13 +6,19 @@
   "emitterTemplates": [
     {
       "name": "trail",
-      "maxActiveParticles": 250,
+		"maxActiveParticles": 500,
       "emitPerSecond": 50,
       "continuous": true,
       "ttl": 3,
       "instaKill": false,
+		"emitDirection": {
+			"x": 1,
+			"y": 0
+		},
+		"emitSpreadAngle": 90,
+		"emitRotateAnglePerSecond": -270.0,
       "particleTemplate": {
-        "ttl": 4,
+		  "ttl": 3,
         "startColor": {
           "r": 0.4,
           "g": 0.9,
@@ -33,15 +39,15 @@
           "width": 4.0,
           "height": 4.0
         },
-        "startSpeed": 200,
+		  "startSpeed": 100,
         "endSpeed": 0,
         "startDirection": {
           "x": 0.78,
           "y": 0.23
         },
         "endDirection": {
-          "x": 1,
-          "y": 1
+			"x": 0,
+			"y": -1
         }
       }
     }
