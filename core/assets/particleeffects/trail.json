@@ -3,6 +3,7 @@
 	"continuous": true,
 	"instaKill": false,
 	"ttl": 3,
+	"timeScale": 1,
 	"emitterTemplates": [
 		{
 			"name": "trail",

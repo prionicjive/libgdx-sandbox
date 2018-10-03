@@ -7,7 +7,8 @@ public class ParticleEffectSettings {
 	public String name;
 	public boolean continuous;
 	public boolean instaKill;
-	public int ttl;
+	public float ttl;
+	public float timeScale;
 
 	public Array<ParticleEmitterTemplate> emitterTemplates;
 }

@@ -16,6 +16,7 @@ public class ParticleEffect {
 	public boolean instaKill;
 	public float ttl;
 	public float age;
+	public float timeScale;
 
 	public boolean paused;
 	private final Array<ParticleEmitter> emitters;
@@ -28,6 +29,7 @@ public class ParticleEffect {
 		instaKill = settings.instaKill;
 		ttl = settings.ttl;
 		age = 0;
+		timeScale = settings.timeScale;
 
 		emitters = new Array<>();
 
@@ -54,7 +56,7 @@ public class ParticleEffect {
 	public void update(float delta) {
 		if (!done) {
 			if (!continuous) {
-				age += delta;
+				age += (delta * timeScale);
 
 				// TODO Might have more complex death state...
 				if (age >= ttl) {
@@ -71,7 +73,7 @@ public class ParticleEffect {
 			// No need to update if paused
 			if (!paused) {
 				for (int i = 0, n = emitters.size; i < n; i++) {
-					emitters.get(i).update(delta);
+					emitters.get(i).update(delta * timeScale);
 				}
 			}
 		}
