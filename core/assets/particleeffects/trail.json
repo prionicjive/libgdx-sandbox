@@ -1,55 +1,55 @@
 {
-  "name": "trail",
-  "continuous": true,
-  "instaKill": false,
-  "ttl": 3,
-  "emitterTemplates": [
-    {
-      "name": "trail",
-		"maxActiveParticles": 500,
-      "emitPerSecond": 50,
-      "continuous": true,
-      "ttl": 3,
-      "instaKill": false,
-		"emitDirection": {
-			"x": 1,
-			"y": 0
-		},
-		"emitSpreadAngle": 90,
-		"emitRotateAnglePerSecond": -270.0,
-      "particleTemplate": {
-		  "ttl": 3,
-        "startColor": {
-          "r": 0.4,
-          "g": 0.9,
-          "b": 0.7,
-          "a": 1
-        },
-        "endColor": {
-          "r": 1.0,
-          "g": 0.3,
-          "b": 0.69,
-          "a": 0
-        },
-        "startSize": {
-          "width": 16.0,
-          "height": 16.0
-        },
-        "endSize": {
-          "width": 4.0,
-          "height": 4.0
-        },
-		  "startSpeed": 100,
-        "endSpeed": 0,
-        "startDirection": {
-          "x": 0.78,
-          "y": 0.23
-        },
-        "endDirection": {
-			"x": 0,
-			"y": -1
-        }
-      }
-    }
-  ]
+	"name": "trail",
+	"continuous": true,
+	"instaKill": false,
+	"ttl": 3,
+	"emitterTemplates": [
+		{
+			"name": "trail",
+			"maxActiveParticles": 600,
+			"emitPerSecond": 60,
+			"continuous": true,
+			"ttl": 3,
+			"instaKill": false,
+			"emitDirection": {
+				"x": 1,
+				"y": 0
+			},
+			"emitSpreadAngle": 0,
+			"emitRotateAnglePerSecond": -270.0,
+			"particleTemplate": {
+				"ttl": 2,
+				"startColor": {
+					"r": 0.4,
+					"g": 0.9,
+					"b": 0.7,
+					"a": 1
+				},
+				"endColor": {
+					"r": 1.0,
+					"g": 0.3,
+					"b": 0.69,
+					"a": 0
+				},
+				"startSize": {
+					"width": 32.0,
+					"height": 32.0
+				},
+				"endSize": {
+					"width": 4.0,
+					"height": 4.0
+				},
+				"startSpeed": 100,
+				"endSpeed": 0,
+				"startDirection": {
+					"x": 0.78,
+					"y": 0.23
+				},
+				"endDirection": {
+					"x": 0,
+					"y": -1
+				}
+			}
+		}
+	]
 }

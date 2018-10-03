@@ -67,10 +67,6 @@ public class ParticleEmitter {
 		// Pool the emitters
 		for (int i = 0; i < maxActiveParticles; i++) {
 			Particle p = new Particle(texture, template.particleTemplate);
-
-			// Update anything that might be needed on particle emission
-			prepareParticle(p);
-
 			deadPool.add(p);
 		}
 
@@ -81,6 +77,7 @@ public class ParticleEmitter {
 	public void update(float delta) {
 		if (!paused && !done) {
 			// No matter what, rotate the emitter
+			emitDirection.rotate(emitRotateAnglePerSecond * delta);
 			emitDirection.rotate(emitRotateAnglePerSecond * delta);
 			// Emit if need be
 			accum += delta;
@@ -162,12 +159,8 @@ public class ParticleEmitter {
 		// Only emit if we can
 		if (deadPool.size > 0) {
 			Particle emit = deadPool.removeIndex(0);
-			emit.reset();
-			emit.sprite.setPosition(position.x, position.y);
-
 			// Update anything that might be needed on particle emission
 			prepareParticle(emit);
-
 			activeParticles.add(emit);
 		}
 	}
@@ -177,5 +170,9 @@ public class ParticleEmitter {
 		// Treat direct as a normal, meaning have of the spread will be on 1 side and the other half on the other side
 		particleToPrepare.startDirection.set(emitDirection).rotate(emitSpreadAngle / -2f).rotate(MathUtils.random(emitSpreadAngle));
 		//	particleToPrepare.endDirection = particleToPrepare.startDirection;
+
+		// Reset the particle with based on its new determined state
+		particleToPrepare.reset();
+		particleToPrepare.sprite.setPosition(position.x, position.y);
 	}
 }
