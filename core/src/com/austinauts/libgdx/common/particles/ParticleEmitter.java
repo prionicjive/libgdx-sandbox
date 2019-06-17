@@ -77,8 +77,9 @@ public class ParticleEmitter {
 	public void update(float delta) {
 		if (!paused && !done) {
 			// No matter what, rotate the emitter
+			// TODO Do any other continuous action here too
 			emitDirection.rotate(emitRotateAnglePerSecond * delta);
-			emitDirection.rotate(emitRotateAnglePerSecond * delta);
+
 			// Emit if need be
 			accum += delta;
 
@@ -130,7 +131,11 @@ public class ParticleEmitter {
 					Particle curr = activeParticles.get(i);
 
 					batch.setColor(curr.sprite.getColor());
-					batch.draw(curr.sprite.getTexture(), curr.sprite.getX(), curr.sprite.getY(), curr.sprite.getWidth(), curr.sprite.getHeight());
+					batch.draw(curr.sprite.getTexture(),
+							curr.sprite.getX() + curr.sprite.getOriginX() - (curr.sprite.getWidth() / 2f),
+							curr.sprite.getY() + curr.sprite.getOriginY() - (curr.sprite.getHeight() / 2f),
+							curr.sprite.getWidth(),
+							curr.sprite.getHeight());
 				}
 			}
 			batch.end();
@@ -173,6 +178,7 @@ public class ParticleEmitter {
 
 		// Reset the particle with based on its new determined state
 		particleToPrepare.reset();
-		particleToPrepare.sprite.setPosition(position.x, position.y);
+		particleToPrepare.sprite.setCenter(position.x, position.y);
+		particleToPrepare.sprite.setOriginCenter();
 	}
 }

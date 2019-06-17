@@ -30,8 +30,6 @@ public class Particle {
 	}
 
 	private void set(ParticleTemplate template) {
-		sprite.setOrigin(0f, 0f);
-
 		startColor = new Color(template.startColor);
 		endColor = new Color(template.endColor);
 		interpolatedColor = new Color(startColor);
@@ -86,7 +84,8 @@ public class Particle {
 		interpolatedSize.width = (endSize.width - startSize.width) / ttl * delta;
 		interpolatedSize.height = (endSize.height - startSize.height) / ttl * delta;
 		sprite.setSize(sprite.getWidth() + interpolatedSize.width, sprite.getHeight() + interpolatedSize.width);
-	
+		//sprite.setOriginCenter();
+
 		// Adjust speed and direction
 		interpolatedSpeed += ((endSpeed - startSpeed) / ttl) * delta;
 		interpolatedDirection.x += (endDirection.x - startDirection.x) / ttl * delta;
