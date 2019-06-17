@@ -1,25 +1,25 @@
 {
-	"name": "trailEffect",
-	"ttl": 3,
-	"timeScale": 1,
+	"name": "trail",
 	"continuous": true,
 	"instaKill": false,
+	"ttl": 3,
+	"timeScale": 1,
 	"emitterTemplates": [
 		{
-			"ttl": 3,
-			"name": "trailEmitter",
+			"name": "spin",
+			"maxActiveParticles": 600,
+			"emitPerSecond": 60,
 			"continuous": true,
+			"ttl": 3,
 			"instaKill": false,
-			"maxActiveParticles": 250,
-			"emitPerSecond": 15,
 			"emitDirection": {
-				"x": 0,
+				"x": 1,
 				"y": 0
 			},
 			"emitSpreadAngle": 0,
-			"emitRotateAnglePerSecond": 0.0,
+			"emitRotateAnglePerSecond": -270.0,
 			"particleTemplate": {
-				"ttl": 1.5,
+				"ttl": 2,
 				"startColor": {
 					"r": 0.4,
 					"g": 0.9,
@@ -27,9 +27,9 @@
 					"a": 1
 				},
 				"endColor": {
-					"r": 0.4,
-					"g": 0.9,
-					"b": 0.7,
+					"r": 1.0,
+					"g": 0.3,
+					"b": 0.69,
 					"a": 0
 				},
 				"startSize": {
@@ -37,17 +37,20 @@
 					"height": 32.0
 				},
 				"endSize": {
-					"width": 0.0,
-					"height": 0.0
+					"width": 4.0,
+					"height": 4.0
 				},
+				"startSpeed": 100,
+				"endSpeed": 0,
 				"startDirection": {
-					"x": 0,
-					"y": 0
+					"x": 0.78,
+					"y": 0.23
 				},
 				"endDirection": {
 					"x": 0,
-					"y": 0
+					"y": -1
 				}
 			}
-		}]
+		}
+	]
 }
