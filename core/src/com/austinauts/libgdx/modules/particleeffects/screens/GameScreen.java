@@ -17,7 +17,7 @@ public class GameScreen extends ScreenAdapter {
 	// --------------------
 	// Game Entities
 	// --------------------
-	private ParticleEffect trailEffect;
+	private ParticleEffect trailEffect; // TODO Better way to store this and look up by name?
 
 	// --------------------
 	// Scratch variables
@@ -39,9 +39,8 @@ public class GameScreen extends ScreenAdapter {
 		// Set up the game entities
 		// -------------------------------------
 		ParticleEffectSettings settings = _game.json.fromJson(ParticleEffectSettings.class, Gdx.files.internal(AustinautsGame.CONFIG_EFFECTS_TRAIL));
-		Texture texToUse = _game.assetManager.get(AustinautsGame.TEXTURE_PARTICLE, Texture.class);
+		Texture texToUse = _game.assetManager.get(AustinautsGame.TEXTURE_PARTICLE_TRAIL, Texture.class);
 		trailEffect = new ParticleEffect(texToUse, settings);
-		//trailEmitter.reset();
 		trailEffect.reset();
 		trailEffect.setPosition(100, 100);
 	}

@@ -27,6 +27,7 @@ public class AustinautsGame extends Game {
 	public final static String TEXTURE_PLAYER = "textures/morphball.png";
 	public final static String TEXTURE_PLAYERANMIATION = "textures/player_animation.png";
 	public final static String TEXTURE_PARTICLE = "textures/particle_soft_64x64.png";
+	public final static String TEXTURE_PARTICLE_TRAIL = "textures/ring_soft.png";
 
 	// TODO May be a better way to do this
 	public final static String TILEMAP_SAMPLE_TILESET = "tilemaps/tiles.png";
@@ -34,6 +35,7 @@ public class AustinautsGame extends Game {
 	public final static String TILEMAP_SAMPLE_MAP = "tilemaps/test.tmx";
 
 	public static final String CONFIG_EFFECTS_TRAIL = "particleeffects/trail.json";
+	public static final String CONFIG_EFFECTS_SPIN = "particleeffects/spin.json";
 
 	//public final static String MUSIC_TRACK = "music/retrace_the_circle.mp3";
 
