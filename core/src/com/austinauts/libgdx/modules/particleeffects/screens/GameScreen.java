@@ -38,7 +38,7 @@ public class GameScreen extends ScreenAdapter {
 		// -------------------------------------
 		// Set up the game entities
 		// -------------------------------------
-		ParticleEffectSettings settings = _game.json.fromJson(ParticleEffectSettings.class, Gdx.files.internal(AustinautsGame.CONFIG_EFFECTS_TRAIL));
+		ParticleEffectSettings settings = _game.json.fromJson(ParticleEffectSettings.class, Gdx.files.internal(AustinautsGame.CONFIG_EFFECTS_SPIN));
 		Texture texToUse = _game.assetManager.get(AustinautsGame.TEXTURE_PARTICLE_TRAIL, Texture.class);
 		trailEffect = new ParticleEffect(texToUse, settings);
 		trailEffect.reset();
