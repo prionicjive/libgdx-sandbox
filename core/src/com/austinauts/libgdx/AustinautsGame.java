@@ -27,6 +27,8 @@ public class AustinautsGame extends Game {
 	public final static String TEXTURE_BLOCK = "textures/block_64x64.png";
 	public final static String TEXTURE_TILE = "textures/tile_16.png";
 	public final static String TEXTURE_PLAYER = "textures/morphball.png";
+	public final static String TEXTURE_HARDCIRCLE = "textures/hard_circle.png";
+	public final static String TEXTURE_HARDCIRCLE_1024 = "textures/hard_circle_1024.png";
 	public final static String TEXTURE_PLAYERANMIATION = "textures/player_animation.png";
 	public final static String TEXTURE_PARTICLE = "textures/particle_soft_64x64.png";
 	public final static String TEXTURE_PARTICLE_TRAIL = "textures/ring_soft.png";

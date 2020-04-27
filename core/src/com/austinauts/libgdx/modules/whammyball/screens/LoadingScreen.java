@@ -10,7 +10,7 @@ public class LoadingScreen extends BaseLoadingScreen {
 
 		// Tell the asset manager what needs to be loaded
 		_game.assetManager.load(AustinautsGame.TEXTURE_TILE, Texture.class);
-		_game.assetManager.load(AustinautsGame.TEXTURE_PLAYER, Texture.class);
+		_game.assetManager.load(AustinautsGame.TEXTURE_HARDCIRCLE_1024, Texture.class);
 	}
 
 	@Override
