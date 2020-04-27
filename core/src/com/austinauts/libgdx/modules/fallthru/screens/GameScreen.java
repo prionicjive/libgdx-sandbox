@@ -77,7 +77,7 @@ public class GameScreen extends ScreenAdapter {
 		// Set up the game entities
 		// -------------------------------------
 		player = new Player(_game);
-		player.setPosition((_game.masterWorldWidth / 2) - (BLOCK_SIZE / 2), _game.masterWorldHeight - BLOCK_SIZE); // Start at the top of the screen, centered
+		player.setPosition((_game.virtualScreenSize.width / 2) - (BLOCK_SIZE / 2), _game.virtualScreenSize.height - BLOCK_SIZE); // Start at the top of the screen, centered
 		player.setVelocity(1f, 0f);
 		player.setSpeed(250f);
 
@@ -93,7 +93,7 @@ public class GameScreen extends ScreenAdapter {
 
 		// Create the first row that appears offscreen
 		Row newRow = rowPool.obtain();
-		newRow.init(BLOCK_SIZE, 2, _game.masterWorldWidth, 7, 0);
+		newRow.init(BLOCK_SIZE, 2, _game.virtualScreenSize.width, 7, 0);
 		activeRows.add(newRow);
 	}
 
@@ -133,13 +133,13 @@ public class GameScreen extends ScreenAdapter {
 
 			bigFont.setColor(Color.BLACK);
 			smallFont.setColor(Color.BLACK);
-			bigFont.draw(_game.batch, Integer.toString(score), 5 + 1, _game.masterWorldHeight + 5 - 1);
-			smallFont.draw(_game.batch, "Score", 5 + 1, _game.masterWorldHeight - 1);
+			bigFont.draw(_game.batch, Integer.toString(score), 5 + 1, _game.virtualScreenSize.height + 5 - 1);
+			smallFont.draw(_game.batch, "Score", 5 + 1, _game.virtualScreenSize.height - 1);
 
 			bigFont.setColor(Color.WHITE);
 			smallFont.setColor(Color.WHITE);
-			bigFont.draw(_game.batch, Integer.toString(score), 5, _game.masterWorldHeight + 5);
-			smallFont.draw(_game.batch, "Score", 5, _game.masterWorldHeight);
+			bigFont.draw(_game.batch, Integer.toString(score), 5, _game.virtualScreenSize.height + 5);
+			smallFont.draw(_game.batch, "Score", 5, _game.virtualScreenSize.height);
 		}
 		_game.batch.end();
 	}
@@ -235,8 +235,8 @@ public class GameScreen extends ScreenAdapter {
 		if (player.getX() < 0) {
 			player.setX(0f);
 		}
-		else if (player.getX() > _game.masterWorldWidth - BLOCK_SIZE) {
-			player.setX(_game.masterWorldWidth - BLOCK_SIZE);
+		else if (player.getX() > _game.virtualScreenSize.width - BLOCK_SIZE) {
+			player.setX(_game.virtualScreenSize.width - BLOCK_SIZE);
 		}
 
 		// Update rows and gaps based on how fast the scrolling speed is
@@ -252,7 +252,7 @@ public class GameScreen extends ScreenAdapter {
 			currRow.getBoundingRectangle().setY(currRow.getBoundingRectangle().getY() + (rowSpeed * delta));
 
 			// If the current row is off screen, remove it
-			if (currRow.getBoundingRectangle().getY() > _game.masterWorldHeight) {
+			if (currRow.getBoundingRectangle().getY() > _game.virtualScreenSize.height) {
 				rowPool.free(currRow);
 				rowIterator.remove();
 			}
@@ -261,7 +261,7 @@ public class GameScreen extends ScreenAdapter {
 		// If the most recently created row (The one closest to the bottom) is past the padding point, spawn an new
 		if (activeRows.size != 0 && activeRows.get(activeRows.size - 1).getBoundingRectangle().getY() > PADDING_BETWEEN_ROWS) {
 			Row newRow = rowPool.obtain();
-			newRow.init(BLOCK_SIZE, 2, _game.masterWorldWidth, 7, -BLOCK_SIZE);
+			newRow.init(BLOCK_SIZE, 2, _game.virtualScreenSize.width, 7, -BLOCK_SIZE);
 			activeRows.add(newRow);
 		}
 	}
@@ -333,7 +333,7 @@ public class GameScreen extends ScreenAdapter {
 			player.setY(0f);
 			playerGravity = 0f; // TODO Probably merge into player class
 		}
-		else if (player.getY() > _game.masterWorldHeight - BLOCK_SIZE) {
+		else if (player.getY() > _game.virtualScreenSize.height - BLOCK_SIZE) {
 			// Switch to the game over screen
 			_game.setScreen(new GameOverScreen(_game, score, elapsedGameTime));
 		}

@@ -1,4 +1,4 @@
-package com.austinauts.libgdx.modules.zonar.screens;
+package com.austinauts.libgdx.modules.whammyball.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
 import com.austinauts.libgdx.common.utils.ShaderHelper;

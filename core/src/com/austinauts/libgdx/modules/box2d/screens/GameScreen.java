@@ -103,8 +103,8 @@ public class GameScreen extends ScreenAdapter {
 		// -------------------------------------
 
 		// Set up the viewport to play well with Box2D
-		numCols = _game.masterWorldWidth / PIXELS_PER_METER;
-		numRows = _game.masterWorldHeight / PIXELS_PER_METER;
+		numCols = _game.virtualScreenSize.width / PIXELS_PER_METER;
+		numRows = _game.virtualScreenSize.height / PIXELS_PER_METER;
 		_game.viewport.setWorldSize(numCols, numRows);
 		_game.viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
 
@@ -271,7 +271,7 @@ public class GameScreen extends ScreenAdapter {
 		// Create our body definition
 		topWallBodyDef = new BodyDef();
 		// Set its world position
-		topWallBodyDef.position.set(new Vector2(worldToViewport(_game.masterWorldWidth / 2.0f), worldToViewport(_game.masterWorldHeight) - 0.5f));
+		topWallBodyDef.position.set(new Vector2(worldToViewport(_game.virtualScreenSize.width / 2.0f), worldToViewport(_game.virtualScreenSize.height) - 0.5f));
 
 		// Create a body from the defintion and add it to the world
 		topWallBody = world.createBody(topWallBodyDef);
@@ -280,7 +280,7 @@ public class GameScreen extends ScreenAdapter {
 		topWallBox = new PolygonShape();
 
 		// Set the polygon shape (setAsBox takes half-width and half-height as arguments)
-		topWallBox.setAsBox(worldToViewport(_game.masterWorldWidth / 2.0f), 0.5f);
+		topWallBox.setAsBox(worldToViewport(_game.virtualScreenSize.width / 2.0f), 0.5f);
 		// Create a fixture from our polygon shape and add it to our topWall body
 		topWallBody.createFixture(topWallBox, 0.0f);
 
@@ -288,7 +288,7 @@ public class GameScreen extends ScreenAdapter {
 		// Create our body definition
 		bottomWallBodyDef = new BodyDef();
 		// Set its world position
-		bottomWallBodyDef.position.set(new Vector2(worldToViewport(_game.masterWorldWidth / 2.0f), 0.5f));
+		bottomWallBodyDef.position.set(new Vector2(worldToViewport(_game.virtualScreenSize.width / 2.0f), 0.5f));
 
 		// Create a body from the defintion and add it to the world
 		bottomWallBody = world.createBody(bottomWallBodyDef);
@@ -297,7 +297,7 @@ public class GameScreen extends ScreenAdapter {
 		bottomWallBox = new PolygonShape();
 
 		// Set the polygon shape (setAsBox takes half-width and half-height as arguments)
-		bottomWallBox.setAsBox(worldToViewport(_game.masterWorldWidth / 2), 0.5f);
+		bottomWallBox.setAsBox(worldToViewport(_game.virtualScreenSize.width / 2), 0.5f);
 		// Create a fixture from our polygon shape and add it to our bottomWall body
 		bottomWallBody.createFixture(bottomWallBox, 0.0f);
 
@@ -305,7 +305,7 @@ public class GameScreen extends ScreenAdapter {
 		// Create our body definition
 		leftWallBodyDef = new BodyDef();
 		// Set its world position
-		leftWallBodyDef.position.set(new Vector2(0.5f, worldToViewport(_game.masterWorldHeight / 2.0f)));
+		leftWallBodyDef.position.set(new Vector2(0.5f, worldToViewport(_game.virtualScreenSize.height / 2.0f)));
 
 		// Create a body from the defintion and add it to the world
 		leftWallBody = world.createBody(leftWallBodyDef);
@@ -314,7 +314,7 @@ public class GameScreen extends ScreenAdapter {
 		leftWallBox = new PolygonShape();
 
 		// Set the polygon shape (setAsBox takes half-width and half-height as arguments)
-		leftWallBox.setAsBox(0.5f, worldToViewport(_game.masterWorldHeight / 2.0f));
+		leftWallBox.setAsBox(0.5f, worldToViewport(_game.virtualScreenSize.height / 2.0f));
 		// Create a fixture from our polygon shape and add it to our leftWall body
 		leftWallBody.createFixture(leftWallBox, 0.0f);
 
@@ -322,7 +322,7 @@ public class GameScreen extends ScreenAdapter {
 		// Create our body definition
 		rightWallBodyDef = new BodyDef();
 		// Set its world position
-		rightWallBodyDef.position.set(new Vector2(worldToViewport(_game.masterWorldWidth) - 0.5f, worldToViewport(_game.masterWorldHeight / 2.0f)));
+		rightWallBodyDef.position.set(new Vector2(worldToViewport(_game.virtualScreenSize.width) - 0.5f, worldToViewport(_game.virtualScreenSize.height / 2.0f)));
 
 		// Create a body from the defintion and add it to the world
 		rightWallBody = world.createBody(rightWallBodyDef);
@@ -331,7 +331,7 @@ public class GameScreen extends ScreenAdapter {
 		rightWallBox = new PolygonShape();
 
 		// Set the polygon shape (setAsBox takes half-width and half-height as arguments)
-		rightWallBox.setAsBox(0.5f, worldToViewport(_game.masterWorldHeight / 2.0f));
+		rightWallBox.setAsBox(0.5f, worldToViewport(_game.virtualScreenSize.height / 2.0f));
 		// Create a fixture from our polygon shape and add it to our rightWall body
 		rightWallBody.createFixture(rightWallBox, 0.0f);
 	}

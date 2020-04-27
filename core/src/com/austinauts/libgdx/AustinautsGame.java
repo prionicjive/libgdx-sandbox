@@ -1,10 +1,12 @@
 package com.austinauts.libgdx;
 
-import com.austinauts.libgdx.modules.particleeffects.screens.LoadingScreen;
+import com.austinauts.libgdx.common.utils.misc.IntDimensions;
+import com.austinauts.libgdx.modules.whammyball.screens.LoadingScreen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.graphics.FPSLogger;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
@@ -69,10 +71,15 @@ public class AustinautsGame extends Game {
 	// Camera and viewport
 	public OrthographicCamera camera;
 	public Viewport viewport;
+	public IntDimensions virtualScreenSize; // TODO Will be driven by external config
+	private int masterWorldWidth = 1280;
+	private int masterWorldHeight = 720;
 
-	// TODO Have this accessible from a common place
-	public int masterWorldWidth = 1280 / 1; // IMPORTANT: This is the TARGET resolution and what will be scaled to window size
-	public int masterWorldHeight = 720 / 1; // IMPORTANT: This is the TARGET resolution and what will be scaled to window size
+	// Used to track the time between main render loop calls
+	public float deltaTime;
+
+	// TODO Is there a better way to log FPS?
+	public FPSLogger fpsLogger;
 
 	@Override
 	public void create() {
@@ -86,6 +93,10 @@ public class AustinautsGame extends Game {
 		// Set up the JSON reader
 		json = new Json();
 		jsonReader = new JsonReader();
+
+		// Set virtual screen size
+		// IMPORTANT: This is the TARGET resolution and what will be scaled to window size
+		virtualScreenSize = new IntDimensions(masterWorldWidth, masterWorldHeight);
 
 		Box2D.init();
 		box2DDebugRenderer = new Box2DDebugRenderer();
@@ -115,11 +126,11 @@ public class AustinautsGame extends Game {
 
 		// Create and set up the camera
 		camera = new OrthographicCamera();
-		camera.setToOrtho(false, masterWorldWidth, masterWorldHeight); // The camera's dimensions mirror view
+		camera.setToOrtho(false, virtualScreenSize.width, virtualScreenSize.height); // The camera's dimensions mirror view
 
 		// Set up the viewport
 		// TODO Make the type of view port and size configurable
-		viewport = new FitViewport(masterWorldWidth, masterWorldHeight, camera);
+		viewport = new FitViewport(virtualScreenSize.width, virtualScreenSize.height, camera);
 
 		// Set the initial screen of our game to an instance the LoadingScreen
 		this.setScreen(new LoadingScreen(this));
@@ -144,7 +155,6 @@ public class AustinautsGame extends Game {
 		// TODO Dispose of all the assets and other native resources
 		batch.dispose();
 		shapeRenderer.dispose();
-
 
 		box2DDebugRenderer.dispose();
 

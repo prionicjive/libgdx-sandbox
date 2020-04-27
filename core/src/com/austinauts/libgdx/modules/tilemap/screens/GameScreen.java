@@ -193,8 +193,8 @@ public class GameScreen extends ScreenAdapter {
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	private void initializeTileMap() {
-		int numCols = _game.masterWorldWidth / BLOCK_SIZE;
-		int numRows = _game.masterWorldHeight / BLOCK_SIZE;
+		int numCols = _game.virtualScreenSize.width / BLOCK_SIZE;
+		int numRows = _game.virtualScreenSize.height / BLOCK_SIZE;
 
 		// TODO Build out a better constructed map
 		// TODO Ugh... shouldn't be passing any texture data (I believe...)

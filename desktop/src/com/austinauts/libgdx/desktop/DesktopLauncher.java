@@ -16,6 +16,7 @@ public class DesktopLauncher {
 		// 1280x720 is minimum supported resolution
 		// TODO Share this as the viewport info
 		config.setWindowedMode(1280, 720);
+		config.useVsync(true);
 		config.setResizable(true);
 
 		new Lwjgl3Application(new AustinautsGame(), config);

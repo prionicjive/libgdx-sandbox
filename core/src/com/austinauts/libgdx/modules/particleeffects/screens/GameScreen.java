@@ -59,7 +59,7 @@ public class GameScreen extends ScreenAdapter {
 		_game.camera.update();
 
 		// TODO Update entities
-		trailEffect.setPosition(Gdx.input.getX(), _game.masterWorldHeight - Gdx.input.getY());
+		trailEffect.setPosition(Gdx.input.getX(), _game.virtualScreenSize.height - Gdx.input.getY());
 		trailEffect.update(delta);
 
 		// Clear the backbuffer (Dark blue-green)

@@ -207,8 +207,8 @@ public class ParticleSystem {
 	}
 
 	private void initializeShaders() {
-		spawnWidth = _game.masterWorldWidth;
-		spawnHeight = _game.masterWorldHeight;
+		spawnWidth = _game.virtualScreenSize.width;
+		spawnHeight = _game.virtualScreenSize.height;
 
 		// Ensure that not everything about a shader needs to be configured
 		ShaderProgram.pedantic = false;

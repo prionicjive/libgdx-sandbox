@@ -101,13 +101,13 @@ public class GameOverScreen extends ScreenAdapter {
 
 		summaryText = String.format(summaryText, finalScore, timeStr, highScore, bestTimeStr);
 		_game.glyphLayout.setText(mediumFont, summaryText);
-		summaryPos = new Vector2((_game.masterWorldWidth / 2) - (_game.glyphLayout.width / 2), (_game.masterWorldHeight / 2) + (_game.glyphLayout.height / 2));
+		summaryPos = new Vector2((_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2), (_game.virtualScreenSize.height / 2) + (_game.glyphLayout.height / 2));
 
 		_game.glyphLayout.setText(bigFont, gameOverText);
-		gameOverPos = new Vector2((_game.masterWorldWidth / 2) - (_game.glyphLayout.width / 2), summaryPos.y + _game.glyphLayout.height + 3);
+		gameOverPos = new Vector2((_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2), summaryPos.y + _game.glyphLayout.height + 3);
 
 		_game.glyphLayout.setText(smallFont, retryText);
-		retryPos = new Vector2((_game.masterWorldWidth / 2) - (_game.glyphLayout.width / 2), summaryPos.y - _game.glyphLayout.height - 10);
+		retryPos = new Vector2((_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2), summaryPos.y - _game.glyphLayout.height - 10);
 	}
 
 	@Override

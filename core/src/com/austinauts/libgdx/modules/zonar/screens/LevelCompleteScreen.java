@@ -34,10 +34,10 @@ public class LevelCompleteScreen extends ScreenAdapter {
 		smallFont = _game.smallFont;
 
 		_game.glyphLayout.setText(bigFont, completeText);
-		completePos = new Vector2((_game.masterWorldWidth / 2) - (_game.glyphLayout.width / 2) + 1, _game.masterWorldHeight / 2 + _game.glyphLayout.height - 1);
+		completePos = new Vector2((_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2) + 1, _game.virtualScreenSize.height / 2 + _game.glyphLayout.height - 1);
 
 		_game.glyphLayout.setText(smallFont, continueText);
-		continuePos = new Vector2((_game.masterWorldWidth / 2) - (_game.glyphLayout.width / 2), _game.masterWorldHeight / 2);
+		continuePos = new Vector2((_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2), _game.virtualScreenSize.height / 2);
 	}
 
 	@Override
@@ -52,7 +52,7 @@ public class LevelCompleteScreen extends ScreenAdapter {
 		Gdx.gl.glClearColor(0.1f, 0.8f, 0.5f, .1f);
 		Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT);
 
-		_game.viewport.setWorldSize(_game.masterWorldWidth, _game.masterWorldHeight);
+		_game.viewport.setWorldSize(_game.virtualScreenSize.width, _game.virtualScreenSize.height);
 		_game.viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
 		_game.batch.setProjectionMatrix(_game.camera.combined);
 

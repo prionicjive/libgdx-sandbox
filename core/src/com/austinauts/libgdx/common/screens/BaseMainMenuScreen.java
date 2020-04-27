@@ -48,15 +48,15 @@ public abstract class BaseMainMenuScreen extends ScreenAdapter {
 		{
 			bigFont.setColor(Color.BLACK);
 			_game.glyphLayout.setText(bigFont, _welcomeText);
-			bigFont.draw(_game.batch, _welcomeText, (_game.masterWorldWidth / 2) - (_game.glyphLayout.width / 2) + 1, _game.masterWorldHeight / 2 + _game.glyphLayout.height - 1);
+			bigFont.draw(_game.batch, _welcomeText, (_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2) + 1, _game.virtualScreenSize.height / 2 + _game.glyphLayout.height - 1);
 			bigFont.setColor(Color.WHITE);
-			bigFont.draw(_game.batch, _welcomeText, (_game.masterWorldWidth / 2) - (_game.glyphLayout.width / 2), _game.masterWorldHeight / 2 + _game.glyphLayout.height);
+			bigFont.draw(_game.batch, _welcomeText, (_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2), _game.virtualScreenSize.height / 2 + _game.glyphLayout.height);
 
 			smallFont.setColor(Color.BLACK);
 			_game.glyphLayout.setText(smallFont, _clickToBeginText);
-			smallFont.draw(_game.batch, _clickToBeginText, (_game.masterWorldWidth / 2) - (_game.glyphLayout.width / 2) + 1, _game.masterWorldHeight / 2 - 1);
+			smallFont.draw(_game.batch, _clickToBeginText, (_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2) + 1, _game.virtualScreenSize.height / 2 - 1);
 			smallFont.setColor(Color.WHITE);
-			smallFont.draw(_game.batch, _clickToBeginText, (_game.masterWorldWidth / 2) - (_game.glyphLayout.width / 2), _game.masterWorldHeight / 2);
+			smallFont.draw(_game.batch, _clickToBeginText, (_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2), _game.virtualScreenSize.height / 2);
 		}
 		_game.batch.end();
 	}

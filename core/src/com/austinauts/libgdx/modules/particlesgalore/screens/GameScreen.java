@@ -36,7 +36,7 @@ public class GameScreen extends ScreenAdapter {
 
 		// TODO See how to better set up rendering a simple quad with the default shader
 		defaultShader = ShaderHelper.createDefaultShader();
-		fullscreenQuad = ShaderHelper.createFullScreenQuad(_game.masterWorldWidth, _game.masterWorldHeight, false, 0f, 0f, 0f, 0.075f); // TODO Make tweakable with keypresses
+		fullscreenQuad = ShaderHelper.createFullScreenQuad(_game.virtualScreenSize.width, _game.virtualScreenSize.height, false, 0f, 0f, 0f, 0.075f); // TODO Make tweakable with keypresses
 
 		// -------------------------------------
 		// Set up shader and particle related things
@@ -44,7 +44,7 @@ public class GameScreen extends ScreenAdapter {
 		particleSystem = new ParticleSystem(game);
 
 		// Set up the accumulation FBO
-		accumulationFBO = new FloatFrameBuffer(_game.masterWorldWidth, _game.masterWorldHeight, false);
+		accumulationFBO = new FloatFrameBuffer(_game.virtualScreenSize.width, _game.virtualScreenSize.height, false);
 		accumulationFboTextureRegion = new TextureRegion(accumulationFBO.getColorBufferTexture());
 		accumulationFboTextureRegion.flip(false, true); // Needed to display correctly if rendering to screen
 
@@ -74,7 +74,7 @@ public class GameScreen extends ScreenAdapter {
 		particleSystem.updateAndSimulate(delta);
 
 		// Resize the camera and the batch for the particles, which should be full screen
-		_game.camera.setToOrtho(false, _game.masterWorldWidth, _game.masterWorldHeight);
+		_game.camera.setToOrtho(false, _game.virtualScreenSize.width, _game.virtualScreenSize.height);
 
 		// Bind the accumulation FBO for rendering
 		accumulationFBO.begin();
