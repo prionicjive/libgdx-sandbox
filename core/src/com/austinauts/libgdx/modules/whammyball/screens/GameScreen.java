@@ -1,7 +1,9 @@
 package com.austinauts.libgdx.modules.whammyball.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
-import com.austinauts.libgdx.common.utils.ShaderHelper;
+import com.austinauts.libgdx.common.utils.DisposalHelper;
+import com.austinauts.libgdx.modules.whammyball.entities.Ball;
+import com.austinauts.libgdx.modules.whammyball.entities.BallUserData;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -9,27 +11,21 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.glutils.FloatFrameBuffer;
-import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
-import com.badlogic.gdx.physics.box2d.CircleShape;
 import com.badlogic.gdx.physics.box2d.Contact;
 import com.badlogic.gdx.physics.box2d.ContactImpulse;
 import com.badlogic.gdx.physics.box2d.ContactListener;
-import com.badlogic.gdx.physics.box2d.Fixture;
-import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Queue;
 import com.badlogic.gdx.utils.TimeUtils;
-import net.dermetfan.gdx.graphics.g2d.Box2DSprite;
 
 public class GameScreen extends ScreenAdapter {
 	// TODO Again, JSON?
@@ -37,7 +33,6 @@ public class GameScreen extends ScreenAdapter {
 	private final float GRAVITY_PER_SECOND_Y = 0f; //-10f;
 	private final float STRENGTH_OF_FORCE = 5f;
 	private final float STRENGTH_OF_IMPULSE = 400f;
-	private final float LINEAR_DAMPING = 0.87f;
 	// Reference to main game object
 	private final AustinautsGame _game;
 	private final int CHANCE_OF_TILE = 0; // TODO Make all of these clearer
@@ -54,6 +49,7 @@ public class GameScreen extends ScreenAdapter {
 	// TODO Better way to store the most recent direction to the player?
 	private Vector2 dirToMouse = new Vector2(); // Initializing for scratch purposes
 	private Vector2 scratchVec2d = new Vector2();
+	private boolean hasMouseMoved = false;
 
 	// --------------------
 	// Game Entities
@@ -61,15 +57,20 @@ public class GameScreen extends ScreenAdapter {
 	private boolean[][] map;
 	private int numCols;
 	private int numRows;
-	private Array<Body> bodies;
+	private Rectangle deathZoneRect;
+	private BodyDef deathZoneBodyDef;
+	private Body deathZoneBody;
+	private PolygonShape deathZoneBox;
 	private boolean showDebugger = false;
 
 	// TODO How to better define the player?
-	private float playerRadius = 16f / PIXELS_PER_METER; // In Box2d coords
-	private Texture playerTexture;
-	private BodyDef playerBodyDef;
-	private Body playerBody;
-	private CircleShape circle;
+	private Ball activeBall;
+	private Array<Ball> balls = new Array<>();
+	private Vector2 spawnPoint;
+	private Queue<Ball> ballsToCleanUp;
+
+	private Texture ballTexture;
+	private float growthPerSec = 8f;
 	private boolean readyToFire = true;
 	private final String TEXT_READY = "Ready!!!";
 
@@ -110,6 +111,12 @@ public class GameScreen extends ScreenAdapter {
 		// Set up the game entities
 		// -------------------------------------
 
+		// Set up the spawn point
+		spawnPoint = new Vector2(10, worldToViewport(_game.virtualScreenSize.height / 2f));
+
+		// Set up the death zone rect (All in viewport / BOX2D coords)
+		deathZoneRect = new Rectangle(1, 1, 10, worldToViewport(_game.virtualScreenSize.height) - 2);
+
 		// Set up the viewport to play well with Box2D
 		numCols = _game.virtualScreenSize.width / PIXELS_PER_METER;
 		numRows = _game.virtualScreenSize.height / PIXELS_PER_METER;
@@ -121,7 +128,7 @@ public class GameScreen extends ScreenAdapter {
 
 		// Randomly fill map
 		map = new boolean[numRows][numCols];
-		randomMapFill();
+		fillMap();
 
 		// Set up Box2D elements
 		initializeBox2dElements();
@@ -161,14 +168,54 @@ public class GameScreen extends ScreenAdapter {
 		// TODO Doing this is critical. Does this have to be done every time, everywhere?
 		_game.batch.setProjectionMatrix(_game.camera.combined);
 
+		_game.shapeRenderer.setProjectionMatrix(_game.camera.combined);
+		_game.shapeRenderer.setColor(0.9f, 0.3f, 0.2f, 1f);
+		_game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+		_game.shapeRenderer.rect(deathZoneRect.x, deathZoneRect.y, deathZoneRect.width, deathZoneRect.height);
+		_game.shapeRenderer.end();
+
 		if (showDebugger) {
 			// Do some debug drawing for Box2D
 			_game.box2DDebugRenderer.render(_game.world, _game.camera.combined);
 		} else {
 			_game.batch.begin();
 			{
-				// TODO Draw player
-				_game.batch.draw(playerTexture, playerBody.getPosition().x - playerRadius, playerBody.getPosition().y - playerRadius, playerRadius * 2f, playerRadius * 2f);
+				_game.batch.setColor(Color.WHITE);
+				// Draw the active ball
+				if (activeBall != null) {
+					_game.batch.setColor(Color.TEAL);
+
+					_game.batch.draw(
+							activeBall.texture,
+							activeBall.body.getPosition().x - activeBall.radius,
+							activeBall.body.getPosition().y - activeBall.radius,
+							activeBall.radius * 2f,
+							activeBall.radius * 2f
+					);
+				}
+
+				// Draw all other balls
+				for (Ball ball : balls) {
+					int health = ((BallUserData)ball.body.getUserData()).health;
+
+					if (health >= 3) {
+						_game.batch.setColor(Color.GREEN);
+					} else if (health == 2) {
+						_game.batch.setColor(Color.YELLOW);
+					} else {
+						_game.batch.setColor(Color.RED);
+					}
+
+					_game.batch.draw(
+						ball.texture,
+						ball.body.getPosition().x - ball.radius,
+						ball.body.getPosition().y - ball.radius,
+						ball.radius * 2f,
+						ball.radius * 2f
+					);
+				}
+
+				_game.batch.setColor(Color.WHITE);
 
 				// Draw all world tiles
 				for (int y = 0; y < numRows; y++) {
@@ -188,6 +235,14 @@ public class GameScreen extends ScreenAdapter {
 			_game.viewport.setWorldSize(_game.virtualScreenSize.width, _game.virtualScreenSize.height);
 			_game.viewport.apply(true);
 			_game.batch.setProjectionMatrix(_game.camera.combined);
+
+			if (hasMouseMoved) {
+				_game.shapeRenderer.setProjectionMatrix(_game.camera.combined);
+				_game.shapeRenderer.setColor(0.1f, 0.8f, 0.5f, 1f);
+				_game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+				_game.shapeRenderer.line(viewportToWorld(spawnPoint.x), viewportToWorld(spawnPoint.y), touchPos.x, touchPos.y);
+				_game.shapeRenderer.end();
+			}
 
 			// Lastly, render any text / UI needed
 			_game.batch.begin();
@@ -218,11 +273,18 @@ public class GameScreen extends ScreenAdapter {
 	public void dispose() {
 		// Remember to dispose of any shapes after you're done with them!
 		// BodyDef and FixtureDef don't need disposing, but shapes do.
-		circle.dispose();
+		if (activeBall != null) {
+			activeBall.dispose();
+		}
+
+		DisposalHelper.disposeCollection(balls);
+
 		topWallBox.dispose();
 		bottomWallBox.dispose();
 		leftWallBox.dispose();
 		rightWallBox.dispose();
+
+		deathZoneBox.dispose();
 	}
 
 	// ------------------------
@@ -247,62 +309,116 @@ public class GameScreen extends ScreenAdapter {
 	}
 
 	private void updateEntities(float delta) {
-		// See if the player is stopped
-		if (!readyToFire && playerBody.getAngularVelocity() <= 0.1 && playerBody.getLinearVelocity().len() <= 0.1) {
-			readyToFire = true;
+		if (activeBall != null) {
+			if (activeBall.isGrowing) {
+				activeBall.radius += growthPerSec * delta;
 
-			// TODO Grow the active ball!
-			float closestDistance = Float.MAX_VALUE;
+				// If we've reached the growth, rebuild the body
+				if (activeBall.radius >= activeBall.radiusToGrowTo) {
+					activeBall.radius = activeBall.radiusToGrowTo;
+					activeBall.isGrowing = false;
+					readyToFire = true;
 
-			// Look at all the walls
+					// Use scratch to store position to exist after the body is destroyed
+					scratchVec2d = activeBall.body.getPosition();
+					float radiusToUse = activeBall.radius;
 
-			// Top
-			float topWallDistance = Vector2.dst(0, playerBody.getPosition().y, 0, worldToViewport(_game.virtualScreenSize.height) - 1) - playerRadius;
-			if (topWallDistance < closestDistance) {
-				closestDistance = topWallDistance;
-			}
+					// Clear out the active ball for right now
+					if (activeBall.body != null) {
+						_game.world.destroyBody(activeBall.body);
+					}
+					activeBall = null;
 
-			// Bottom
-			float bottomWallDistance = Vector2.dst(0, playerBody.getPosition().y, 0, 1) - playerRadius;
-			if (bottomWallDistance < closestDistance) {
-				closestDistance = bottomWallDistance;
-			}
+					// Create a new ball to be used as a static one in place of what WAS the active ball
+					Ball newBall = new Ball(
+							scratchVec2d.x,
+							scratchVec2d.y,
+							radiusToUse,
+							ballTexture,
+							_game.world,
+							true
+					);
 
-			// Left
-			float leftWallDistance = Vector2.dst(playerBody.getPosition().x, 0, 1, 0) - playerRadius;
-			if (leftWallDistance < closestDistance) {
-				closestDistance = leftWallDistance;
-			}
-
-			// Right
-			float rightWallDistance = Vector2.dst(playerBody.getPosition().x, 0, worldToViewport(_game.virtualScreenSize.width) - 1, 0) - playerRadius;
-			if (rightWallDistance < closestDistance) {
-				closestDistance = rightWallDistance;
-			}
-
-			// TODO Look at all the OTHER balls
-//			for (let ball of staticBalls) {
-//				// Calculate the distance between the center points
-//				let distance = distanceBetween(activeBall.x, activeBall.y, ball.x, ball.y) - activeBall.radius - ball.radius;
-//
-//				// If this ball is closer, flag it as such
-//				if (!closestDistance || distance < closestDistance) {
-//					closestDistance = distance;
-//				}
-//			}
-
-			// At this point, we can set the new radius of the active ball
-			//
-			// ... that said, don't update radius if there are no other balls
-			if (closestDistance > 0.0f) {
-				// If the player has stopped, removed the related body (We'll add it back in as a static)
-				if (playerBody != null) {
-					_game.world.destroyBody(playerBody);
+					// Add the newly created ball to the array of balls
+					balls.add(newBall);
 				}
+			} else {
 
-				playerRadius += closestDistance;
-//				activeBall.isGrowing = true;
-//				activeBall.growTo = closestDistance + activeBall.radius; // Include the previous radius
+				// See if the player is stopped
+				if (!readyToFire && activeBall.body.getAngularVelocity() <= 0.1 && activeBall.body.getLinearVelocity().len() <= 0.1) {
+					// TODO Grow the active ball!
+					float closestDistance = Float.MAX_VALUE;
+
+					// Look at all the walls
+
+					// Top
+					float topWallDistance = Vector2.dst(
+							0,
+							activeBall.body.getPosition().y,
+							0,
+							worldToViewport(_game.virtualScreenSize.height) - 1
+					) - activeBall.radius;
+					if (topWallDistance < closestDistance) {
+						closestDistance = topWallDistance;
+					}
+
+					// Bottom
+					float bottomWallDistance = Vector2.dst(
+							0,
+							activeBall.body.getPosition().y,
+							0,
+							1
+					) - activeBall.radius;
+					if (bottomWallDistance < closestDistance) {
+						closestDistance = bottomWallDistance;
+					}
+
+					// Death zone (Since left wall isn't accessible anyway)
+					float deathZoneDistance = Vector2.dst(
+							activeBall.body.getPosition().x,
+							0,
+							deathZoneRect.x + deathZoneRect.width,
+							0
+					) - activeBall.radius;
+					if (deathZoneDistance < closestDistance) {
+						closestDistance = deathZoneDistance;
+					}
+
+					// Right
+					float rightWallDistance = Vector2.dst(
+							activeBall.body.getPosition().x,
+							0,
+							worldToViewport(_game.virtualScreenSize.width) - 1,
+							0
+					) - activeBall.radius;
+					if (rightWallDistance < closestDistance) {
+						closestDistance = rightWallDistance;
+					}
+
+					// TODO Look at all the OTHER balls
+					for (Ball ball : balls) {
+						// Calculate the distance between the center points
+						float distance = Vector2.dst(
+								activeBall.body.getPosition().x,
+								activeBall.body.getPosition().y,
+								ball.body.getPosition().x,
+								ball.body.getPosition().y
+						) - activeBall.radius - ball.radius;
+
+						// If this ball is closer, flag it as such
+						if (distance < closestDistance) {
+							closestDistance = distance;
+						}
+					}
+
+					// At this point, we can set the new radius of the active ball
+					//
+					// ... that said, don't update radius if there are no other balls
+					if (closestDistance > 0.0f) {
+						activeBall.isGrowing = true;
+						activeBall.radiusToGrowTo = closestDistance + activeBall.radius;
+					}
+				}
 			}
 		}
 
@@ -311,17 +427,30 @@ public class GameScreen extends ScreenAdapter {
 
 		// See if the user is clicking / touching at all
 		if (isTouched && readyToFire) {
-			// Get vector from center of player body to mouse position
-			scratchVec2d.set(touchPos.x, touchPos.y);
-			dirToMouse = scratchVec2d.sub(playerBody.getPosition()).nor();
+			// Ready to fire? Let's make the active ball then!
+			activeBall = new Ball(
+				spawnPoint.x,
+				spawnPoint.y,
+				worldToViewport(16f),
+				ballTexture,
+				_game.world,
+				false
+			);
 
-			playerBody.applyLinearImpulse(dirToMouse.scl(STRENGTH_OF_IMPULSE), playerBody.getPosition(),true);
+			// Get vector from center of player body to mouse position
+			scratchVec2d.set(worldToViewport(touchPos.x), worldToViewport(touchPos.y));
+			dirToMouse = scratchVec2d.sub(activeBall.body.getPosition()).nor();
+
+			activeBall.body.applyLinearImpulse(dirToMouse.scl(STRENGTH_OF_IMPULSE), activeBall.body.getPosition(),true);
 
 			readyToFire = false;
 		}
 	}
 
 	private void doPhysicsStep(float deltaTime) {
+		// Clean up balls that need it
+		cleanUpBalls();
+
 		// fixed time step
 		// max frame time to avoid spiral of death (on slow devices)
 		float frameTime = Math.min(deltaTime, 0.25f);
@@ -339,20 +468,14 @@ public class GameScreen extends ScreenAdapter {
 	private void initializeInputProcessor() {
 		// TODO Put InputProcessing in another place?
 		Gdx.input.setInputProcessor(new InputAdapter() {
+			@Override
 			public boolean keyDown(int key) {
 				if (key == Input.Keys.NUM_1) {
 					showDebugger = !showDebugger;
 					return true;
-				}
-				else if (key == Input.Keys.BACKSPACE) {
-					// Destroy the body and recreate it
-					createPlayerBody();
-
-					return true;
-				}
-				else if (key == Input.Keys.SPACE) {
+				} else if (key == Input.Keys.SPACE) {
 					// Randomly refill map and reset player
-					randomMapFill();
+					fillMap();
 					reinitializeMapPhysics();
 					return true;
 				}
@@ -367,13 +490,29 @@ public class GameScreen extends ScreenAdapter {
 				return false;
 			}
 
+			@Override
+			public boolean mouseMoved(int screenX, int screenY) {
+				hasMouseMoved = true;
+
+				// "Unproject" from the screen to world position, taking the viewport dimensions into account
+				touchPos.set(screenX, screenY, 0f);
+				touchPos = _game.camera.unproject(touchPos, _game.viewport.getScreenX(), _game.viewport.getScreenY(), _game.viewport.getScreenWidth(), _game.viewport.getScreenHeight());
+
+				return super.mouseMoved(screenX, screenY);
+			}
+
+			@Override
 			public boolean touchDown(int screenX, int screenY, int pointer, int button) {
 				if (button == Input.Buttons.LEFT) {
-					// "Unproject" from the screen to world position, taking the viewport dimensions into account
-					touchPos.set(screenX, screenY, 0f);
-					touchPos = _game.camera.unproject(touchPos, _game.viewport.getScreenX(), _game.viewport.getScreenY(), _game.viewport.getScreenWidth(), _game.viewport.getScreenHeight());
+					if (hasMouseMoved) {
+						// "Unproject" from the screen to world position, taking the viewport dimensions into account
+						touchPos.set(screenX, screenY, 0f);
+						touchPos = _game.camera.unproject(touchPos, _game.viewport.getScreenX(), _game.viewport.getScreenY(), _game.viewport.getScreenWidth(), _game.viewport.getScreenHeight());
 
-					return true;
+						return true;
+					}
+
+					return false;
 				}
 
 				return false;
@@ -396,71 +535,24 @@ public class GameScreen extends ScreenAdapter {
 	private void initializeBox2dElements() {
 
 		_game.world = new World(new Vector2(0, GRAVITY_PER_SECOND_Y), true);
-		bodies = new Array<>();
 
-		playerTexture = _game.assetManager.get(AustinautsGame.TEXTURE_HARDCIRCLE_1024, Texture.class);
-
+		ballTexture = _game.assetManager.get(AustinautsGame.TEXTURE_HARDCIRCLE_1024, Texture.class);
 		tileTexture = _game.assetManager.get(AustinautsGame.TEXTURE_TILE, Texture.class);
+
+		ballsToCleanUp = new Queue<>();
 
 		setupContactListener();
 	}
 
-	private void createPlayerBody() {
-		// Destroy body if it exists
-		// TODO Is this smart to hide it away?
-		if (playerBody != null) {
-			_game.world.destroyBody(playerBody);
-		}
-
-		playerBodyDef = new BodyDef();
-
-		// We set our playerBody to dynamic, for something like ground which doesn't move we would set it to StaticBody
-		playerBodyDef.type = BodyDef.BodyType.DynamicBody;
-		playerBodyDef.linearDamping = LINEAR_DAMPING;
-
-		// Set our playerBody's starting position in the world
-		// TODO This is the spawn point. Better way to do this?
-		playerBodyDef.position.set(generateRandomPoint(1, 4,
-			1, numRows - 1, map));
-
-		// Create our playerBody in the world using our playerBody definition
-		playerBody = _game.world.createBody(playerBodyDef);
-
-		// Create a circle shape and set its radius
-		circle = new CircleShape();
-		circle.setRadius(playerRadius - 0.01f);
-
-		// Create a playerFixture definition to apply our shape to
-		FixtureDef playerFixtureDef = new FixtureDef();
-		playerFixtureDef.shape = circle;
-		playerFixtureDef.density = 1.0f;
-		playerFixtureDef.friction = 0.0f;
-		playerFixtureDef.restitution = 0.95f; // Make it mostly bounce back perfectly
-
-		// Create our playerFixtureDef and attach it to the playerBody
-		playerBody.createFixture(playerFixtureDef);
-	}
-
-	private Vector2 generateRandomPoint(int spawnStartCol, int spawnEndCol, int spawnStartRow, int spawnEndRow, boolean[][] mapToUse) {
-		Vector2 pos = new Vector2();
-
-		pos.x = spawnStartCol + MathUtils.random((spawnEndCol + 1) - spawnStartCol);
-		pos.y = spawnStartRow + MathUtils.random((spawnEndRow + 1) - spawnStartRow);
-
-		// Now, see if this is generated at a tile. If so, search for a clear spot
-		if (mapToUse[(int) pos.y][(int) pos.x]) {
-			for (int r = spawnStartRow; r < spawnEndRow; r++) {
-				for (int c = spawnStartCol; c < spawnEndCol; c++) {
-					if (!mapToUse[r][c]) {
-						pos.x = c;
-						pos.y = r;
-						return pos;
-					}
-				}
+	private void cleanUpBalls() {
+		for (Ball ball : ballsToCleanUp) {
+			if (ball.body != null && !_game.world.isLocked()) {
+				_game.world.destroyBody(ball.body);
+				balls.removeValue(ball, true);
 			}
 		}
 
-		return pos;
+		ballsToCleanUp.clear();
 	}
 
 	// TODO Organize this  better?
@@ -468,12 +560,25 @@ public class GameScreen extends ScreenAdapter {
 		_game.world.setContactListener(new ContactListener() {
 			@Override
 			public void beginContact(Contact contact) {
-				Fixture fixtureA = contact.getFixtureA();
-				Fixture fixtureB = contact.getFixtureB();
+				BallUserData userDataA = contact.getFixtureA().getBody().getUserData() != null ? (BallUserData)contact.getFixtureA().getBody().getUserData() : null;
+				BallUserData userDataB = contact.getFixtureB().getBody().getUserData() != null ? (BallUserData)contact.getFixtureB().getBody().getUserData() : null;
 
-				if ((fixtureA.isSensor() || fixtureB.isSensor())
-					&& (fixtureA.getBody().equals(playerBody) || fixtureB.getBody().equals(playerBody))) {
-					// TODO DO something!!
+				if (userDataA != null) {
+					userDataA.health--;
+
+					if (userDataA.health <= 0) {
+						// With the health gone, add ball to clean up
+						ballsToCleanUp.addFirst(userDataA.correspondingBall);
+					}
+				}
+
+				if (userDataB != null) {
+					userDataB.health--;
+
+					if (userDataB.health <= 0) {
+						// With the health gone, add ball to clean up
+						ballsToCleanUp.addFirst(userDataB.correspondingBall);
+					}
 				}
 			}
 
@@ -495,13 +600,13 @@ public class GameScreen extends ScreenAdapter {
 	}
 
 	// TODO Can these go into a helper class?
-	private void buildLevelBounds() {
+	private void buildLevelBoundsAndDeathZone() {
 
 		topWallBodyDef = new BodyDef();
 		// Set its world position
 		topWallBodyDef.position.set(new Vector2(worldToViewport(_game.virtualScreenSize.width / 2.0f), worldToViewport(_game.virtualScreenSize.height) - 0.5f));
 
-		// Create a playerBody from the defintion and add it to the world
+		// Create a activeBall.body from the defintion and add it to the world
 		topWallBody = _game.world.createBody(topWallBodyDef);
 
 		// Create a polygon shape
@@ -509,7 +614,7 @@ public class GameScreen extends ScreenAdapter {
 
 		// Set the polygon shape (setAsBox takes half-width and half-height as arguments)
 		topWallBox.setAsBox(worldToViewport(_game.virtualScreenSize.width / 2.0f), 0.5f);
-		// Create a playerFixture from our polygon shape and add it to our topWall playerBody
+		// Create a playerFixture from our polygon shape and add it to our topWall activeBall.body
 		topWallBody.createFixture(topWallBox, 0.0f);
 
 
@@ -556,9 +661,26 @@ public class GameScreen extends ScreenAdapter {
 		rightWallBox.setAsBox(0.5f, worldToViewport(_game.virtualScreenSize.height / 2.0f));
 
 		rightWallBody.createFixture(rightWallBox, 0.0f);
+
+
+		// Lastly, make the death zone!
+		deathZoneBodyDef = new BodyDef();
+
+		// Set its world position
+		deathZoneBodyDef.position.set(new Vector2(deathZoneRect.x + deathZoneRect.width / 2f, deathZoneRect.y + deathZoneRect.height / 2f));
+
+		deathZoneBody = _game.world.createBody(deathZoneBodyDef);
+
+		// Create a polygon shape
+		deathZoneBox = new PolygonShape();
+
+		// Set the polygon shape (setAsBox takes half-width and half-height as arguments)
+		deathZoneBox.setAsBox(deathZoneRect.width / 2f,deathZoneRect.height / 2f);
+
+		deathZoneBody.createFixture(deathZoneBox, 0.0f);
 	}
 
-	private void randomMapFill() {
+	private void fillMap() {
 		for (int y = 0; y < numRows; y++) {
 			for (int x = 0; x < numCols; x++) {
 				// Add a tile at the outer rows and edges
@@ -576,20 +698,24 @@ public class GameScreen extends ScreenAdapter {
 		removeAllBodies();
 
 		// Build the outer boundaries of the level
-		buildLevelBounds();
-
-		// Create the player body if need be
-		createPlayerBody();
+		buildLevelBoundsAndDeathZone();
 	}
 
 	private void removeAllBodies() {
-		while (bodies.size > 0) {
-			Body body = bodies.get(0);
-			_game.world.destroyBody(body);
-			bodies.removeIndex(0);
+		while (balls.size > 0) {
+			Ball ball = balls.get(0);
+			
+			if (ball.body != null) {
+				_game.world.destroyBody(ball.body);
+				balls.removeIndex(0);
+			}
 		}
 
-		bodies.clear();
+		balls.clear();
+
+		if (activeBall != null && activeBall.body != null) {
+			_game.world.destroyBody(activeBall.body);
+		}
 	}
 }
 

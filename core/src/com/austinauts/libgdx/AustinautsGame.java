@@ -1,5 +1,6 @@
 package com.austinauts.libgdx;
 
+import com.austinauts.libgdx.common.utils.DisposalHelper;
 import com.austinauts.libgdx.common.utils.misc.IntDimensions;
 import com.austinauts.libgdx.modules.whammyball.screens.LoadingScreen;
 import com.badlogic.gdx.Game;
@@ -166,18 +167,13 @@ public class AustinautsGame extends Game {
 		}
 
 		// Dispose of all the fonts
-		disposeCollection(fontMap.values());
+		DisposalHelper.disposeCollection(fontMap.values());
 		fontMap.clear();
 	}
 
 	// ------------------------
 	// Private methods
 	// ------------------------
-	private void disposeCollection(Iterable<? extends Disposable> valuesToDispose) {
-		for (Disposable valueToDispose : valuesToDispose) {
-			valueToDispose.dispose();
-		}
-	}
 
 	private void loadFontsFromPathsFile(FileHandle pathsFile) {
 		String[] paths = pathsFile.readString().split("\\n");
