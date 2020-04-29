@@ -20,6 +20,7 @@ import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Contact;
 import com.badlogic.gdx.physics.box2d.ContactImpulse;
 import com.badlogic.gdx.physics.box2d.ContactListener;
+import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
@@ -61,6 +62,7 @@ public class GameScreen extends ScreenAdapter {
 	private BodyDef deathZoneBodyDef;
 	private Body deathZoneBody;
 	private PolygonShape deathZoneBox;
+	private boolean insideDeathZone = false;
 	private boolean showDebugger = false;
 
 	// TODO How to better define the player?
@@ -346,6 +348,11 @@ public class GameScreen extends ScreenAdapter {
 
 				// See if the player is stopped
 				if (!readyToFire && activeBall.body.getAngularVelocity() <= 0.1 && activeBall.body.getLinearVelocity().len() <= 0.1) {
+					// Before we do anymore calculation, let's see if we are in the death zone (And now, you know, dead.)
+					if (insideDeathZone) {
+						_game.setScreen(new GameOverScreen(_game));
+					}
+
 					// TODO Grow the active ball!
 					float closestDistance = Float.MAX_VALUE;
 
@@ -560,24 +567,33 @@ public class GameScreen extends ScreenAdapter {
 		_game.world.setContactListener(new ContactListener() {
 			@Override
 			public void beginContact(Contact contact) {
-				BallUserData userDataA = contact.getFixtureA().getBody().getUserData() != null ? (BallUserData)contact.getFixtureA().getBody().getUserData() : null;
-				BallUserData userDataB = contact.getFixtureB().getBody().getUserData() != null ? (BallUserData)contact.getFixtureB().getBody().getUserData() : null;
+				// See if the collision is for the death zone
+				if (contact.getFixtureA().getBody() == deathZoneBody || contact.getFixtureB().getBody() == deathZoneBody) {
+					// Let it be known that we are in the death zone
+					insideDeathZone = true;
+				} else {
+					// We definitely aren't in the death zone
+					insideDeathZone = false;
 
-				if (userDataA != null) {
-					userDataA.health--;
+					BallUserData userDataA = contact.getFixtureA().getBody().getUserData() != null ? (BallUserData) contact.getFixtureA().getBody().getUserData() : null;
+					BallUserData userDataB = contact.getFixtureB().getBody().getUserData() != null ? (BallUserData) contact.getFixtureB().getBody().getUserData() : null;
 
-					if (userDataA.health <= 0) {
-						// With the health gone, add ball to clean up
-						ballsToCleanUp.addFirst(userDataA.correspondingBall);
+					if (userDataA != null) {
+						userDataA.health--;
+
+						if (userDataA.health <= 0) {
+							// With the health gone, add ball to clean up
+							ballsToCleanUp.addFirst(userDataA.correspondingBall);
+						}
 					}
-				}
 
-				if (userDataB != null) {
-					userDataB.health--;
+					if (userDataB != null) {
+						userDataB.health--;
 
-					if (userDataB.health <= 0) {
-						// With the health gone, add ball to clean up
-						ballsToCleanUp.addFirst(userDataB.correspondingBall);
+						if (userDataB.health <= 0) {
+							// With the health gone, add ball to clean up
+							ballsToCleanUp.addFirst(userDataB.correspondingBall);
+						}
 					}
 				}
 			}
@@ -666,6 +682,8 @@ public class GameScreen extends ScreenAdapter {
 		// Lastly, make the death zone!
 		deathZoneBodyDef = new BodyDef();
 
+		deathZoneBodyDef.type = BodyDef.BodyType.StaticBody;
+
 		// Set its world position
 		deathZoneBodyDef.position.set(new Vector2(deathZoneRect.x + deathZoneRect.width / 2f, deathZoneRect.y + deathZoneRect.height / 2f));
 
@@ -677,7 +695,11 @@ public class GameScreen extends ScreenAdapter {
 		// Set the polygon shape (setAsBox takes half-width and half-height as arguments)
 		deathZoneBox.setAsBox(deathZoneRect.width / 2f,deathZoneRect.height / 2f);
 
-		deathZoneBody.createFixture(deathZoneBox, 0.0f);
+		FixtureDef deathZoneFixtureDef = new FixtureDef();
+		deathZoneFixtureDef.shape = deathZoneBox;
+		deathZoneFixtureDef.isSensor = true;
+
+		deathZoneBody.createFixture(deathZoneFixtureDef);
 	}
 
 	private void fillMap() {

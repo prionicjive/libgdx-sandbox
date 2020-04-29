@@ -49,7 +49,7 @@ public class GameOverScreen extends ScreenAdapter {
 		}
 
 		// Clear the backbuffer
-		Gdx.gl.glClearColor(0.1f, 0.8f, 0.5f, .1f);
+		Gdx.gl.glClearColor(0.9f, 0.3f, 0.2f, 1f);
 		Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT);
 
 		_game.viewport.setWorldSize(_game.virtualScreenSize.width, _game.virtualScreenSize.height);
