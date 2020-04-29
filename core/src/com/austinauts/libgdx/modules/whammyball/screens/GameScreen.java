@@ -2,6 +2,7 @@ package com.austinauts.libgdx.modules.whammyball.screens;
 
 import com.austinauts.libgdx.AustinautsGame;
 import com.austinauts.libgdx.common.utils.DisposalHelper;
+import com.austinauts.libgdx.common.utils.TextDisplayHelper;
 import com.austinauts.libgdx.modules.whammyball.entities.Ball;
 import com.austinauts.libgdx.modules.whammyball.entities.BallUserData;
 import com.badlogic.gdx.Gdx;
@@ -51,6 +52,9 @@ public class GameScreen extends ScreenAdapter {
 	private Vector2 dirToMouse = new Vector2(); // Initializing for scratch purposes
 	private Vector2 scratchVec2d = new Vector2();
 	private boolean hasMouseMoved = false;
+
+	private int score = 0;
+	private final String TEXT_SCORE = "Score: %d";
 
 	// --------------------
 	// Game Entities
@@ -154,10 +158,11 @@ public class GameScreen extends ScreenAdapter {
 		// Check the timer and properly boost the row speed
 		checkTimer();
 
-		// Update game entities
 		updateEntities(delta);
 
 		doPhysicsStep(delta);
+
+		// Update game entities
 
 		// Clear the backbuffer
 		Gdx.gl.glClearColor(.1f, .1f, .1f, 1);
@@ -195,30 +200,40 @@ public class GameScreen extends ScreenAdapter {
 							activeBall.radius * 2f
 					);
 				}
+			}
+			_game.batch.end();
 
-				// Draw all other balls
+			// Draw all other balls
+			_game.batch.begin();
+			{
 				for (Ball ball : balls) {
-					int health = ((BallUserData)ball.body.getUserData()).health;
+					int health = ((BallUserData) ball.body.getUserData()).health;
 
 					if (health >= 3) {
 						_game.batch.setColor(Color.GREEN);
-					} else if (health == 2) {
+					}
+					else if (health == 2) {
 						_game.batch.setColor(Color.YELLOW);
-					} else {
+					}
+					else {
 						_game.batch.setColor(Color.RED);
 					}
 
 					_game.batch.draw(
-						ball.texture,
-						ball.body.getPosition().x - ball.radius,
-						ball.body.getPosition().y - ball.radius,
-						ball.radius * 2f,
-						ball.radius * 2f
+							ball.texture,
+							ball.body.getPosition().x - ball.radius,
+							ball.body.getPosition().y - ball.radius,
+							ball.radius * 2f,
+							ball.radius * 2f
 					);
 				}
+			}
+			_game.batch.end();
 
-				_game.batch.setColor(Color.WHITE);
+			_game.batch.setColor(Color.WHITE);
 
+			_game.batch.begin();
+			{
 				// Draw all world tiles
 				for (int y = 0; y < numRows; y++) {
 					for (int x = 0; x < numCols; x++) {
@@ -249,14 +264,28 @@ public class GameScreen extends ScreenAdapter {
 			// Lastly, render any text / UI needed
 			_game.batch.begin();
 			{
-				_game.bigFont.setColor(Color.BLACK);
-				_game.glyphLayout.setText(_game.bigFont, TEXT_READY);
-				_game.bigFont.draw(_game.batch, TEXT_READY, (_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2) + 1, _game.virtualScreenSize.height / 2 + _game.glyphLayout.height - 1);
-				_game.bigFont.setColor(Color.WHITE);
-				_game.bigFont.draw(_game.batch, TEXT_READY, (_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2), _game.virtualScreenSize.height / 2 + _game.glyphLayout.height);
+				_game.mediumFont.setColor(Color.BLACK);
+				_game.glyphLayout.setText(_game.mediumFont, TEXT_READY);
+				_game.mediumFont.draw(_game.batch, TEXT_READY, (_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2) + 1, _game.virtualScreenSize.height / 2 + _game.glyphLayout.height - 1);
+				_game.mediumFont.setColor(Color.WHITE);
+				_game.mediumFont.draw(_game.batch, TEXT_READY, (_game.virtualScreenSize.width / 2) - (_game.glyphLayout.width / 2), _game.virtualScreenSize.height / 2 + _game.glyphLayout.height);
 			}
 			_game.batch.end();
 		}
+
+		// Draw any text / UI that is not conditional or state dependant
+
+		// Change the camera size to the virtual screen size (Just to be safe again)
+		_game.viewport.setWorldSize(_game.virtualScreenSize.width, _game.virtualScreenSize.height);
+		_game.viewport.apply(true);
+		_game.batch.setProjectionMatrix(_game.camera.combined);
+
+		_game.batch.begin();
+		{
+			TextDisplayHelper.drawTextWithShadow(_game.batch, _game.mediumFont, String.format(TEXT_SCORE, score), viewportToWorld(2f), viewportToWorld(3f));
+			//TextDisplayHelper.drawTextWithShadow(_game.batch, _game.mediumFont, "Inside Death Zone - " + insideDeathZone, viewportToWorld(2f), viewportToWorld(6f));
+		}
+		_game.batch.end();
 	}
 
 	@Override
@@ -312,6 +341,9 @@ public class GameScreen extends ScreenAdapter {
 
 	private void updateEntities(float delta) {
 		if (activeBall != null) {
+			// See if we are in the death zone
+			insideDeathZone = activeBall.body.getPosition().x - activeBall.radius < deathZoneRect.x + deathZoneRect.width;
+
 			if (activeBall.isGrowing) {
 				activeBall.radius += growthPerSec * delta;
 
@@ -350,7 +382,7 @@ public class GameScreen extends ScreenAdapter {
 				if (!readyToFire && activeBall.body.getAngularVelocity() <= 0.1 && activeBall.body.getLinearVelocity().len() <= 0.1) {
 					// Before we do anymore calculation, let's see if we are in the death zone (And now, you know, dead.)
 					if (insideDeathZone) {
-						_game.setScreen(new GameOverScreen(_game));
+						_game.setScreen(new GameOverScreen(_game, score));
 					}
 
 					// TODO Grow the active ball!
@@ -556,6 +588,9 @@ public class GameScreen extends ScreenAdapter {
 			if (ball.body != null && !_game.world.isLocked()) {
 				_game.world.destroyBody(ball.body);
 				balls.removeValue(ball, true);
+
+				// Bump up the score now that we've removed the ball
+				score++;
 			}
 		}
 
@@ -567,33 +602,24 @@ public class GameScreen extends ScreenAdapter {
 		_game.world.setContactListener(new ContactListener() {
 			@Override
 			public void beginContact(Contact contact) {
-				// See if the collision is for the death zone
-				if (contact.getFixtureA().getBody() == deathZoneBody || contact.getFixtureB().getBody() == deathZoneBody) {
-					// Let it be known that we are in the death zone
-					insideDeathZone = true;
-				} else {
-					// We definitely aren't in the death zone
-					insideDeathZone = false;
+				BallUserData userDataA = contact.getFixtureA().getBody().getUserData() != null ? (BallUserData) contact.getFixtureA().getBody().getUserData() : null;
+				BallUserData userDataB = contact.getFixtureB().getBody().getUserData() != null ? (BallUserData) contact.getFixtureB().getBody().getUserData() : null;
 
-					BallUserData userDataA = contact.getFixtureA().getBody().getUserData() != null ? (BallUserData) contact.getFixtureA().getBody().getUserData() : null;
-					BallUserData userDataB = contact.getFixtureB().getBody().getUserData() != null ? (BallUserData) contact.getFixtureB().getBody().getUserData() : null;
+				if (userDataA != null) {
+					userDataA.health--;
 
-					if (userDataA != null) {
-						userDataA.health--;
-
-						if (userDataA.health <= 0) {
-							// With the health gone, add ball to clean up
-							ballsToCleanUp.addFirst(userDataA.correspondingBall);
-						}
+					if (userDataA.health <= 0) {
+						// With the health gone, add ball to clean up
+						ballsToCleanUp.addFirst(userDataA.correspondingBall);
 					}
+				}
 
-					if (userDataB != null) {
-						userDataB.health--;
+				if (userDataB != null) {
+					userDataB.health--;
 
-						if (userDataB.health <= 0) {
-							// With the health gone, add ball to clean up
-							ballsToCleanUp.addFirst(userDataB.correspondingBall);
-						}
+					if (userDataB.health <= 0) {
+						// With the health gone, add ball to clean up
+						ballsToCleanUp.addFirst(userDataB.correspondingBall);
 					}
 				}
 			}
