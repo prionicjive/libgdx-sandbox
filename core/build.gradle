@@ -3,14 +3,14 @@
 sourceSets.main.java.srcDirs = [ "src/" ]
 
 dependencies {
-    compile "com.badlogicgames.gdx:gdx:$gdxVersion"
-    compile "com.badlogicgames.gdx:gdx-ai:$aiVersion"
-    compile "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
-    compile "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
-    compile "com.badlogicgames.ashley:ashley:$ashleyVersion"
-    compile "com.badlogicgames.gdx:gdx-controllers:$gdxVersion"
-    compile "com.strongjoshua:libgdx-inGameConsole:$inGameConsoleVersion"
-    compile "net.dermetfan.libgdx-utils:libgdx-utils-box2d:$utilsBox2dVersion"
-    
-    compile fileTree(dir: '../libs', include: '*.jar')
+    api "com.badlogicgames.gdx:gdx:$gdxVersion"
+    api "com.badlogicgames.gdx:gdx-ai:$aiVersion"
+    api "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
+    api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+    api "com.badlogicgames.ashley:ashley:$ashleyVersion"
+    api "com.badlogicgames.gdx:gdx-controllers:$gdxVersion"
+    api "com.strongjoshua:libgdx-inGameConsole:$inGameConsoleVersion"
+    api "net.dermetfan.libgdx-utils:libgdx-utils-box2d:$utilsBox2dVersion"
+
+    api fileTree(dir: '../libs', include: '*.jar')
 }
