@@ -2,7 +2,7 @@ package com.austinauts.libgdx;
 
 import com.austinauts.libgdx.common.utils.DisposalHelper;
 import com.austinauts.libgdx.common.utils.misc.IntDimensions;
-import com.austinauts.libgdx.modules.whammyball.screens.LoadingScreen;
+import com.austinauts.libgdx.modules.particlesgalore.screens.LoadingScreen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.assets.AssetManager;

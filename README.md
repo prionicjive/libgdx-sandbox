@@ -1,40 +1,33 @@
-libgdx-sandbox
-===============
+# libgdx-sandbox
 
-Sandbox for all things LibGDX.
+A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
 
-### How to get started
+This project was generated with a template including simple application launchers and a main class extending `Game` that sets the first screen.
 
-Clone the repo to your desktop.
+## Platforms
 
-#### Setup Environment Variables
-Certain environment variables need to be set. Refer to the [LibGDX wiki](https://github.com/libgdx/libgdx/wiki/Setting-up-your-Development-Environment-%28Eclipse%2C-Intellij-IDEA%2C-NetBeans%29) for instructions on how to install all the necessary prerequisites.
+- `core`: Main module with the application logic shared by all platforms.
+- `lwjgl3`: Primary desktop platform using LWJGL3.
 
-  * `JAVA_HOME` (JDK installation directory)
+## Gradle
 
-#### Use Gradle for dependency management and build tasks
+This project uses [Gradle](https://gradle.org/) to manage dependencies.
+The Gradle wrapper was included, so you can run Gradle tasks using `gradlew.bat` or `./gradlew` commands.
+Useful Gradle tasks and flags:
 
-In order to manage dependencies and allow for other interesting build/development related tasks, [LibGDX has leveraged Gradle](https://github.com/libgdx/libgdx/wiki/Project-Setup-Gradle) as a potential tool. Using [Gradle](http://www.gradle.org/) helps ensure that all dependencies are kept up-to-date and prevents the need for JARs and IDE-related files to be in source control.  This also allows developers to work with the source in whatever environment they feel most comfortable with. For more information on Gradle and how LibGDX leverages it, visit the  [LibGDX wiki](https://github.com/libgdx/libgdx/wiki/Project-Setup-Gradle).
+- `--continue`: when using this flag, errors will not stop the tasks from running.
+- `--daemon`: thanks to this flag, Gradle daemon will be used to run chosen tasks.
+- `--offline`: when using this flag, cached dependency archives will be used.
+- `--refresh-dependencies`: this flag forces validation of all dependencies. Useful for snapshot versions.
+- `build`: builds sources and archives of every project.
+- `cleanEclipse`: removes Eclipse project data.
+- `cleanIdea`: removes IntelliJ project data.
+- `clean`: removes `build` folders, which store compiled classes and built archives.
+- `eclipse`: generates Eclipse project data.
+- `idea`: generates IntelliJ project data.
+- `lwjgl3:jar`: builds application's runnable jar, which can be found at `lwjgl3/build/lib`.
+- `lwjgl3:run`: starts the application.
+- `test`: runs unit tests (if any).
 
-For purposes of this project, it is rather simple to pull in the needed dependencies so you (the developer) don't have to worry about them later :-) From the project directory in the command line / terminal, run the following command:
-
-    gradlew clean
-
-To build and run the desktop project, run the following command:
-
-    gradlew desktop:run
-
-Gradle can do many build/development related tasks. Use one of the examples below to get more information from the command line:
-
-    gradlew tasks
-    gradlew desktop:tasks
-
-Visit the [LibGDX wiki](https://github.com/libgdx/libgdx/wiki/Project-Setup-Gradle) for more information.
-
-#### Generate IDE files for IntelliJ IDEA
-
-LibGDX and Gradle make it very easy to generate / leverage files for your IDE of choice. In this case, IntelliJ IDEA is your only choice :D
-
-    gradlew idea
-
-Visit the [LibGDX wiki](https://github.com/libgdx/libgdx/wiki/Project-Setup-Gradle) for detailed instructions on setting up, building and debugging with [IntelliJ IDEA](https://github.com/libgdx/libgdx/wiki/Gradle-and-Intellij-IDEA) and from the [command line](https://github.com/libgdx/libgdx/wiki/Gradle-on-the-Commandline).
+Note that most tasks that are not specific to a single project can be run with `name:` prefix, where the `name` should be replaced with the ID of a specific project.
+For example, `core:clean` removes `build` folder only from the `core` project.
