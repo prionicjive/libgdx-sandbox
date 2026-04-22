@@ -126,6 +126,10 @@ public class ParticleEffect {
 	}
 
 	public boolean isDone() {
+        if (done) {
+            return true;
+        }
+
 		for (int i = 0, n = emitters.size; i < n; i++) {
 			ParticleEmitter emitter = emitters.get(i);
 			if (!emitter.done) {
