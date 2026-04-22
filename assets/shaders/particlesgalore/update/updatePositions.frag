@@ -1,8 +1,4 @@
-#version 330
-
-in vec2 vTexCoord0;
-
-out vec4 fragmentColor;
+#include "preamble.frag"
 
 uniform sampler2D positionMap;
 uniform sampler2D velocityMap;

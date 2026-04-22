@@ -1,8 +1,4 @@
-#version 330
-
-in vec2 vTexCoord0;
-
-out vec4 fragmentColor;
+#include "preamble.frag"
 
 // Scratchpad texture to blit into the canonical state texture
 // Provided by LibGDX SpriteBatch

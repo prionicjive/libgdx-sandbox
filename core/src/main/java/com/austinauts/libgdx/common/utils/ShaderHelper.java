@@ -1,6 +1,7 @@
 package com.austinauts.libgdx.common.utils;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes;
@@ -8,7 +9,36 @@ import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class ShaderHelper {
+	// Matches `#include "some/relative/path.glsl"` on its own line.
+	private static final Pattern INCLUDE_PATTERN = Pattern.compile("(?m)^\\s*#include\\s+\"([^\"]+)\"\\s*$");
+
+	/**
+	 * Load a shader source file from the internal assets, expanding any `#include "path"` directives relative
+	 * to the including file. Includes are resolved recursively.
+	 */
+	public static String loadShaderSource(String internalPath) {
+		return loadShaderSource(Gdx.files.internal(internalPath));
+	}
+
+	private static String loadShaderSource(FileHandle file) {
+		String src = file.readString();
+		Matcher m = INCLUDE_PATTERN.matcher(src);
+		StringBuilder out = new StringBuilder();
+		int last = 0;
+		while (m.find()) {
+			out.append(src, last, m.start());
+			FileHandle included = file.parent().child(m.group(1));
+			out.append(loadShaderSource(included));
+			last = m.end();
+		}
+		out.append(src, last, src.length());
+		return out.toString();
+	}
+
 	/**
 	 * Compiles and returns a new instance of the default shader. If compilation was unsuccessful, GdxRuntimeException will be thrown.
 	 *

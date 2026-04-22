@@ -1,8 +1,4 @@
-#version 330
-
-in vec2 vTexCoord0;
-
-out vec4 fragmentColor;
+#include "preamble.frag"
 
 // Bound texture that contains random values, provided by LibGDX SpriteBatch
 uniform sampler2D u_texture;
