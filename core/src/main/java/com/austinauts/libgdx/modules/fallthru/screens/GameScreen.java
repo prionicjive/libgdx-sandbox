@@ -77,6 +77,7 @@ public class GameScreen extends ScreenAdapter {
 		// Set up the game entities
 		// -------------------------------------
 		player = new Player(_game);
+		player.setSize(BLOCK_SIZE, BLOCK_SIZE);
 		player.setPosition((_game.virtualScreenSize.width / 2) - (BLOCK_SIZE / 2), _game.virtualScreenSize.height - BLOCK_SIZE); // Start at the top of the screen, centered
 		player.setVelocity(1f, 0f);
 		player.setSpeed(250f);
