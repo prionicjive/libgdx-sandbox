@@ -76,8 +76,22 @@ public class ParticleSystem {
 	private Vector3 attractorPosition; // The location of the attractor
 	private static final float idealAttractorForce = 1500.0f;
 	private float currentAttractorForce = idealAttractorForce; // Linear attractor force
+	private static final float ATTRACTOR_MAX_DISTANCE = 250.0f;
 	private static final float dragPercentage = 0.05f;
 	private float deltaTimeForShader = 0.0f;
+
+	// Collider / point-force storage. Layout must match the uniform array element size in updateVelocities.frag
+	// (all three groups are packed as vec4 for driver portability).
+	public static final int MAX_CIRCLE_COLLIDERS = 8;
+	public static final int MAX_RECT_COLLIDERS = 4;
+	public static final int MAX_POINT_FORCES = 8;
+
+	private final float[] circleColliderData = new float[MAX_CIRCLE_COLLIDERS * 4]; // xy=center, z=radius, w unused
+	private final float[] rectColliderData = new float[MAX_RECT_COLLIDERS * 4];     // xy=center, zw=half-extents
+	private final float[] pointForceData = new float[MAX_POINT_FORCES * 4];         // xy=position, z=signed strength, w=maxDistance
+	private int circleColliderCount = 0;
+	private int rectColliderCount = 0;
+	private int pointForceCount = 0;
 
 	// Time scale variables
 	private float timeScale = 1.0f; // Utilized to speed up / slow down the simulation
@@ -117,6 +131,59 @@ public class ParticleSystem {
 		initializeShaders();
 		initializeParticles();
 		initializeAttractors();
+		initializeDefaultColliders();
+	}
+
+	// ---------------------------
+	// Collider configuration API
+	// ---------------------------
+
+	/** Add a circular collider. Particles entering its disc bounce off. */
+	public void addCircleCollider(float centerX, float centerY, float radius) {
+		if (circleColliderCount >= MAX_CIRCLE_COLLIDERS) {
+			throw new IllegalStateException("Exceeded MAX_CIRCLE_COLLIDERS (" + MAX_CIRCLE_COLLIDERS + ")");
+		}
+		int base = circleColliderCount * 4;
+		circleColliderData[base] = centerX;
+		circleColliderData[base + 1] = centerY;
+		circleColliderData[base + 2] = radius;
+		circleColliderData[base + 3] = 0f;
+		circleColliderCount++;
+	}
+
+	/** Add an axis-aligned rectangular collider specified by center + half-extents. */
+	public void addRectCollider(float centerX, float centerY, float halfWidth, float halfHeight) {
+		if (rectColliderCount >= MAX_RECT_COLLIDERS) {
+			throw new IllegalStateException("Exceeded MAX_RECT_COLLIDERS (" + MAX_RECT_COLLIDERS + ")");
+		}
+		int base = rectColliderCount * 4;
+		rectColliderData[base] = centerX;
+		rectColliderData[base + 1] = centerY;
+		rectColliderData[base + 2] = halfWidth;
+		rectColliderData[base + 3] = halfHeight;
+		rectColliderCount++;
+	}
+
+	/**
+	 * Add a point-force that pulls (positive strength) or pushes (negative strength) particles within maxDistance.
+	 * Pass maxDistance <= 0 to use the default falloff scaled by spawnWidth.
+	 */
+	public void addPointForce(float x, float y, float strength, float maxDistance) {
+		if (pointForceCount >= MAX_POINT_FORCES) {
+			throw new IllegalStateException("Exceeded MAX_POINT_FORCES (" + MAX_POINT_FORCES + ")");
+		}
+		int base = pointForceCount * 4;
+		pointForceData[base] = x;
+		pointForceData[base + 1] = y;
+		pointForceData[base + 2] = strength;
+		pointForceData[base + 3] = maxDistance;
+		pointForceCount++;
+	}
+
+	public void clearColliders() {
+		circleColliderCount = 0;
+		rectColliderCount = 0;
+		pointForceCount = 0;
 	}
 
 	public void updateAndSimulate(float delta) {
@@ -215,18 +282,18 @@ public class ParticleSystem {
 		// off SpriteBatch (direct Mesh/ShaderProgram) would let us re-enable pedantic.
 		ShaderProgram.pedantic = false;
 
-		// Get the vertex passthrough shader
-		final String VERT_SRC = Gdx.files.internal("shaders/particlesgalore/passthru.vert").readString();
+		// Shared passthrough vertex shader for every update pass.
+		final String VERT_SRC = ShaderHelper.loadShaderSource("shaders/particlesgalore/passthru.vert");
 
-		// Update shaders
-		initPositions = ShaderHelper.createShader(VERT_SRC, Gdx.files.internal("shaders/particlesgalore/update/initPositions.frag").readString());
-		initVelocities = ShaderHelper.createShader(VERT_SRC, Gdx.files.internal("shaders/particlesgalore/update/initVelocities.frag").readString());
-		updatePositions = ShaderHelper.createShader(VERT_SRC, Gdx.files.internal("shaders/particlesgalore/update/updatePositions.frag").readString());
-		updateVelocities = ShaderHelper.createShader(VERT_SRC, Gdx.files.internal("shaders/particlesgalore/update/updateVelocities.frag").readString());
-		copyTexture = ShaderHelper.createShader(VERT_SRC, Gdx.files.internal("shaders/particlesgalore/update/copyTexture.frag").readString());
+		initPositions    = ShaderHelper.createShader(VERT_SRC, ShaderHelper.loadShaderSource("shaders/particlesgalore/update/initPositions.frag"));
+		initVelocities   = ShaderHelper.createShader(VERT_SRC, ShaderHelper.loadShaderSource("shaders/particlesgalore/update/initVelocities.frag"));
+		updatePositions  = ShaderHelper.createShader(VERT_SRC, ShaderHelper.loadShaderSource("shaders/particlesgalore/update/updatePositions.frag"));
+		updateVelocities = ShaderHelper.createShader(VERT_SRC, ShaderHelper.loadShaderSource("shaders/particlesgalore/update/updateVelocities.frag"));
+		copyTexture      = ShaderHelper.createShader(VERT_SRC, ShaderHelper.loadShaderSource("shaders/particlesgalore/update/copyTexture.frag"));
 
-		// Render shaders
-		particleRender = ShaderHelper.createShader(Gdx.files.internal("shaders/particlesgalore/render/transformAndCalculateVertexColor.vert").readString(), Gdx.files.internal("shaders/particlesgalore/render/setPointSpriteColor.frag").readString());
+		particleRender = ShaderHelper.createShader(
+			ShaderHelper.loadShaderSource("shaders/particlesgalore/render/transformAndCalculateVertexColor.vert"),
+			ShaderHelper.loadShaderSource("shaders/particlesgalore/render/setPointSpriteColor.frag"));
 
 		temporaryRT = new FloatFrameBuffer(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, false);
 		temporaryTexture = temporaryRT.getColorBufferTexture();
@@ -303,6 +370,14 @@ public class ParticleSystem {
 	private void initializeAttractors() {
 		// Set the attractor position to be at the origin
 		attractorPosition = new Vector3();
+	}
+
+	// Seeds the colliders used by the demo scene. Consumers can clearColliders() + add their own to override.
+	private void initializeDefaultColliders() {
+		addCircleCollider(750f, 200f, 100f);
+		addCircleCollider(500f, 200f, 30f);
+		addRectCollider(400f, 200f, 50f, 100f);
+		addPointForce(200f, 500f, -15000f, 75f);
 	}
 
 	private void updateParticles(float delta) {
@@ -451,7 +526,17 @@ public class ParticleSystem {
 			shaderToUse.setUniformf("spawnHeight", spawnHeight);
 			shaderToUse.setUniformf("attractorPos", attractorPosition);
 			shaderToUse.setUniformf("attractorForce", currentAttractorForce);
+			shaderToUse.setUniformf("attractorMaxDistance", ATTRACTOR_MAX_DISTANCE);
 			shaderToUse.setUniformf("dragPercentage", dragPercentage);
+
+			shaderToUse.setUniformi("circleColliderCount", circleColliderCount);
+			shaderToUse.setUniform4fv("circleColliders", circleColliderData, 0, circleColliderData.length);
+
+			shaderToUse.setUniformi("rectColliderCount", rectColliderCount);
+			shaderToUse.setUniform4fv("rectColliders", rectColliderData, 0, rectColliderData.length);
+
+			shaderToUse.setUniformi("pointForceCount", pointForceCount);
+			shaderToUse.setUniform4fv("pointForces", pointForceData, 0, pointForceData.length);
 		}
 	}
 }
