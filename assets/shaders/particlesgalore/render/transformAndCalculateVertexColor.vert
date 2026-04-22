@@ -41,7 +41,7 @@ void main()
     // Luckily, we have set this up in our game code so that it is in the particleCount * particleCount dimensions during initialization.
     //
     // The last component is the mipmap level, which should be 0
-    vec4 worldPosition = texture2D(positionMap, vec2(a_position.xy));
+    vec4 worldPosition = texture(positionMap, a_position.xy);
     worldPosition.w = 1.0;
 
     // Move worldPosition to screen space.
