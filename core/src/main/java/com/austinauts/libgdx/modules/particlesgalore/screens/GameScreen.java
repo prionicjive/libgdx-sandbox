@@ -9,8 +9,11 @@ import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.FloatFrameBuffer;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.austinauts.libgdx.common.utils.DisposalHelper;
 import com.austinauts.libgdx.common.utils.ShaderHelper;
 import com.austinauts.libgdx.modules.particlesgalore.particles.ParticleSystem;
+
+import java.util.Arrays;
 
 public class GameScreen extends ScreenAdapter {
 	// Reference to main game object
@@ -115,5 +118,11 @@ public class GameScreen extends ScreenAdapter {
 			_game.batch.draw(accumulationFboTextureRegion, 0, 0);
 		}
 		_game.batch.end();
+	}
+
+	@Override
+	public void dispose() {
+		DisposalHelper.disposeCollection(Arrays.asList(
+			particleSystem, accumulationFBO, defaultShader, fullscreenQuad));
 	}
 }

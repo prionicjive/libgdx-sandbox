@@ -1,6 +1,8 @@
 package com.austinauts.libgdx.modules.particlesgalore.particles;
 
 import com.austinauts.libgdx.AustinautsGame;
+import com.austinauts.libgdx.common.utils.DisposalHelper;
+import com.austinauts.libgdx.common.utils.ShaderHelper;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -18,69 +20,50 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.BufferUtils;
+import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.FloatArray;
-import com.austinauts.libgdx.common.utils.ShaderHelper;
 
-import java.nio.FloatBuffer;
+import java.util.Arrays;
 
-public class ParticleSystem {
+public class ParticleSystem implements Disposable {
 	// Reference to the game
 	private AustinautsGame _game;
 
-	// Render target that will hold the positions of the particles
+	// Render targets. State is kept on the GPU; positionRT/velocityRT are the canonical "current state".
+	// temporaryRT is a scratchpad used to ping-pong around GL's "can't read+write the same texture" rule.
 	private FloatFrameBuffer positionRT;
-
-	// Render target that will hold the velocities of the particles
 	private FloatFrameBuffer velocityRT;
-
-	// Temporary render target, needed when updating the other render targets.
-	// This is used because if youcan not read and write to a texture at the same time
 	private FloatFrameBuffer temporaryRT;
 
-	// Used to store vertex info from the pixel texture
+	// Per-particle vertex buffer — each vertex's a_position.xy is the particle's slot UV into the state textures.
 	private Mesh particlesVB;
+
+	// Fullscreen quad used as the GPGPU trigger for every update pass.
+	private Mesh updatePassQuad;
 
 	// TODO Externalize this all and make it reloadable in game via developer command
 
-	// Dimension for render targets. We will have a maximum of SQRT_MAX_PARTICLES * SQRT_MAX_PARTICLES particles.
-	// NOTE: Be sure this is power of 2!
-	//
-	// 1x1 = 1
-	// 2x2 = 4
-	// 4x4 = 16
-	// 8x8 = 64
-	// 16x16 = 256
-	// 32x32 = 1,024
-	// 64x64 = 4,096
-	// 128x128 = 16,384
-	// 256x256 = 65,536
-	// 512x512 = 262,144
-	// 1024x1024 = 1,048,576
-	private final static int SQRT_MAX_PARTICLES = 128; // TODO Make more tweakable
+	// Dimension for render targets. Maximum particle count = SQRT_MAX_PARTICLES^2. NOTE: must be a power of 2.
+	private final static int SQRT_MAX_PARTICLES = 128;
 	private final static int MAX_PARTICLES = SQRT_MAX_PARTICLES * SQRT_MAX_PARTICLES;
-	private final static float POINT_SIZE = 2; // TODO Make more tweakable
-	private final static float HALF_POINT_SIZE = POINT_SIZE / 2;
+	private final static float POINT_SIZE = 2;
 
-	//Position attribute - (x, y)
+	// Position attribute - (x, y)
 	public static final int POSITION_COMPONENTS = 2;
-
-	//Color attribute - (r, g, b, a)
+	// Color attribute - (r, g, b, a)
 	public static final int COLOR_COMPONENTS = 4;
-
-	//Total number of components for all attributes
+	// Total number of components for all attributes
 	public static final int NUM_COMPONENTS = POSITION_COMPONENTS + COLOR_COMPONENTS;
 
-	// Update shader params
-	private Texture positionMapUpdate;
-	private Texture velocityMapUpdate;
-	private Vector3 attractorPosition; // The location of the attractor
+	// Sim state
+	private Vector3 attractorPosition;
 	private static final float idealAttractorForce = 1500.0f;
-	private float currentAttractorForce = idealAttractorForce; // Linear attractor force
+	private float currentAttractorForce = idealAttractorForce;
 	private static final float ATTRACTOR_MAX_DISTANCE = 250.0f;
 	private static final float dragPercentage = 0.05f;
 	private float deltaTimeForShader = 0.0f;
 
-	// Collider / point-force storage. Layout must match the uniform array element size in updateVelocities.frag
+	// Collider / point-force storage. Layout matches the uniform array element size in updateVelocities.frag
 	// (all three groups are packed as vec4 for driver portability).
 	public static final int MAX_CIRCLE_COLLIDERS = 8;
 	public static final int MAX_RECT_COLLIDERS = 4;
@@ -94,33 +77,31 @@ public class ParticleSystem {
 	private int pointForceCount = 0;
 
 	// Time scale variables
-	private float timeScale = 1.0f; // Utilized to speed up / slow down the simulation
+	private float timeScale = 1.0f;
 	private static final float MIN_TIME_SCALE = 0f;
 	private static final float MAX_TIME_SCALE = 10f;
 	private static final float TIME_SCALE_INCREMENT = 0.1f;
 
-	// Render shader params
+	// Render-pass inputs
 	private Texture psTexture;
-	private Texture positionMapRender;
 	private float spawnWidth;
 	private float spawnHeight;
 
-	// Initialize flag
+	// True once the initial seed shaders have populated positionRT/velocityRT.
 	private boolean areDataTexutresInitialized = false;
 
 	// Update shaders
 	private ShaderProgram initPositions, initVelocities, updatePositions, updateVelocities, copyTexture;
 
-	// Render shaders
+	// Render shader
 	private ShaderProgram particleRender;
 
+	// Cached handles to the underlying textures of each FBO (set once in init; FBO owns their lifetime).
 	private Texture temporaryTexture;
 	private Texture positionTexture;
 	private Texture velocityTexture;
 
-	// Used to store a series of random values, that will be accessed from various shaders
-	//
-	// This will only ever be READ from.
+	// Read-only RGBA32F texture of per-particle random values. Used by the init shaders for seeding.
 	private Texture randomTexture;
 
 	public ParticleSystem(final AustinautsGame game) {
@@ -192,41 +173,41 @@ public class ParticleSystem {
 	}
 
 	public void renderParticles() {
-		// Set up enablement for point sprites
 		Gdx.gl30.glEnable(GL30.GL_BLEND);
 		Gdx.gl30.glBlendFunc(GL30.GL_SRC_ALPHA, GL30.GL_ONE); // TODO Better determine blend function or make toggleable
-		Gdx.gl30.glEnable(GL30.GL_VERTEX_PROGRAM_POINT_SIZE); // Needed to properly leverage point size
-		Gdx.gl30.glEnable(0x8861); // TODO Needed to properly leverage point size (GL_POINT_SPRITE)
+		Gdx.gl30.glEnable(GL30.GL_VERTEX_PROGRAM_POINT_SIZE);
+		Gdx.gl30.glEnable(0x8861); // GL_POINT_SPRITE — LibGDX's GL30 bindings don't expose this constant.
 
-		// Begin the shader
 		particleRender.begin();
 		{
-			// Set shader params
 			particleRender.setUniformMatrix("u_projTrans", _game.camera.combined);
 			particleRender.setUniformf("pointSize", POINT_SIZE);
 
-			// Set up the needed textures
-			positionMapRender = positionRT.getColorBufferTexture();
-			Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE0);
-			positionMapRender.bind();
+			positionRT.getColorBufferTexture().bind(0);
 			particleRender.setUniformi("positionMap", 0);
 
-			Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE1);
-			psTexture.bind();
+			psTexture.bind(1);
 			particleRender.setUniformi("pointSpriteTex", 1);
 
-			// Render the points
 			particlesVB.render(particleRender, GL30.GL_POINTS, 0, MAX_PARTICLES);
 		}
-		// End the shader
 		particleRender.end();
 
-		// Reset the render state to what it was
 		Gdx.gl30.glDisable(GL30.GL_VERTEX_PROGRAM_POINT_SIZE);
-		Gdx.gl.glDisable(0x8861); // TODO Needed to properly leverage point size (GL_POINT_SPRITE)
+		Gdx.gl.glDisable(0x8861);
 		Gdx.gl30.glDisable(GL30.GL_BLEND);
 		Gdx.gl30.glBlendFunc(GL30.GL_SRC_ALPHA, GL30.GL_ONE_MINUS_SRC_ALPHA);
 		Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE0);
+	}
+
+	@Override
+	public void dispose() {
+		DisposalHelper.disposeCollection(Arrays.asList(
+			positionRT, velocityRT, temporaryRT,
+			particlesVB, updatePassQuad,
+			randomTexture,
+			initPositions, initVelocities, updatePositions, updateVelocities, copyTexture,
+			particleRender));
 	}
 
 	// ---------------------------
@@ -250,24 +231,13 @@ public class ParticleSystem {
 					return true;
 				}
 				else if (key == Input.Keys.PLUS) {
-					timeScale += TIME_SCALE_INCREMENT;
-
-					if (timeScale > MAX_TIME_SCALE) {
-						timeScale = MAX_TIME_SCALE;
-					}
-
+					timeScale = Math.min(MAX_TIME_SCALE, timeScale + TIME_SCALE_INCREMENT);
 					return true;
 				}
 				else if (key == Input.Keys.MINUS) {
-					timeScale -= TIME_SCALE_INCREMENT;
-
-					if (timeScale < MIN_TIME_SCALE) {
-						timeScale = MIN_TIME_SCALE;
-					}
-
+					timeScale = Math.max(MIN_TIME_SCALE, timeScale - TIME_SCALE_INCREMENT);
 					return true;
 				}
-
 				return false;
 			}
 		});
@@ -277,10 +247,9 @@ public class ParticleSystem {
 		spawnWidth = _game.virtualScreenSize.width;
 		spawnHeight = _game.virtualScreenSize.height;
 
-		// SpriteBatch.flush() calls setUniformi("u_texture", 0) on every custom shader, but the update-pass
-		// shaders don't all read u_texture. Leaving pedantic off avoids that mismatch. Moving the update passes
-		// off SpriteBatch (direct Mesh/ShaderProgram) would let us re-enable pedantic.
-		ShaderProgram.pedantic = false;
+		// Every shader we compile here declares all the uniforms it's set with. Run pedantic so any future
+		// mismatch surfaces at the setUniform call that introduced it.
+		ShaderProgram.pedantic = true;
 
 		// Shared passthrough vertex shader for every update pass.
 		final String VERT_SRC = ShaderHelper.loadShaderSource("shaders/particlesgalore/passthru.vert");
@@ -307,6 +276,8 @@ public class ParticleSystem {
 		velocityTexture = velocityRT.getColorBufferTexture();
 		velocityTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
+		updatePassQuad = ShaderHelper.createFullScreenQuad(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES);
+
 		psTexture = _game.assetManager.get(AustinautsGame.TEXTURE_PARTICLE);
 	}
 
@@ -325,18 +296,13 @@ public class ParticleSystem {
 		// For each particle...
 		for (int i = 0; i < SQRT_MAX_PARTICLES; i++) {
 			for (int j = 0; j < SQRT_MAX_PARTICLES; j++) {
-				// Fill the index with a default color and position.
-				//
-				// Be sure the position corresponds exactly with its coordinates in the particleCount * particleCount texture,
-
-				// Set position
+				// Slot UV into the state textures for this particle.
 				position.x = (float) i / (float) SQRT_MAX_PARTICLES;
 				position.y = (float) j / (float) SQRT_MAX_PARTICLES;
 
 				particlesComponentsArray.add(position.x);
 				particlesComponentsArray.add(position.y);
 
-				// Set color
 				color.set(0.1f + MathUtils.random() * 0.3f, 0.3f + MathUtils.random() * 0.5f, 0.3f + MathUtils.random() * 0.7f, 1.0f);
 
 				particlesComponentsArray.add(color.r);
@@ -344,7 +310,6 @@ public class ParticleSystem {
 				particlesComponentsArray.add(color.b);
 				particlesComponentsArray.add(color.a);
 
-				// Set the random value
 				randomValuesComponentsArray.add(MathUtils.random());
 				randomValuesComponentsArray.add(MathUtils.random());
 				randomValuesComponentsArray.add(MathUtils.random());
@@ -358,7 +323,6 @@ public class ParticleSystem {
 			new VertexAttribute(VertexAttributes.Usage.ColorUnpacked, COLOR_COMPONENTS, ShaderProgram.COLOR_ATTRIBUTE));
 		particlesVB.setVertices(particlesComponentsArray.items);
 
-		// Build a texture with random Float values
 		FloatTextureData userFloatTextureData = new FloatTextureData(SQRT_MAX_PARTICLES, SQRT_MAX_PARTICLES, GL30.GL_RGBA32F, GL30.GL_RGBA, GL30.GL_FLOAT, false);
 		userFloatTextureData.prepare();
 		BufferUtils.copy(randomValuesComponentsArray.items, 0, userFloatTextureData.getBuffer(), MAX_PARTICLES * 4);
@@ -368,7 +332,6 @@ public class ParticleSystem {
 	}
 
 	private void initializeAttractors() {
-		// Set the attractor position to be at the origin
 		attractorPosition = new Vector3();
 	}
 
@@ -381,29 +344,21 @@ public class ParticleSystem {
 	}
 
 	private void updateParticles(float delta) {
-		// Get the time (In fractions of a second) since the last update
 		deltaTimeForShader = delta;
 
 		float addedAttractorForce = Gdx.input.isTouched() ? 3000.0f : 0f;
 		currentAttractorForce = idealAttractorForce + addedAttractorForce;
 
-		// Update the attractor position in screen coordinates (Origin is top left)
+		// Screen-space cursor position, unprojected into the same world frame as the particles.
 		attractorPosition.x = Gdx.input.getX();
 		attractorPosition.y = Gdx.input.getY();
-
-		// "Unproject" the attractor position from screen space to world/viewport space
 		_game.camera.unproject(attractorPosition, _game.viewport.getScreenX(), _game.viewport.getScreenY(), _game.viewport.getScreenWidth(), _game.viewport.getScreenHeight());
 	}
 
 	private void simulateParticles() {
-		// Run the physic passes, using the proper render target to read old values/write new values
-		//
-		// Initialize if we haven't
 		if (!areDataTexutresInitialized) {
 			executeUpdateTechnique(initVelocities, velocityRT);
 			executeUpdateTechnique(initPositions, positionRT);
-
-			// Set to true so we don't hit this again
 			areDataTexutresInitialized = true;
 		}
 
@@ -411,132 +366,86 @@ public class ParticleSystem {
 		executeUpdateTechnique(updatePositions, positionRT);
 	}
 
-	private void executeUpdateTechnique(ShaderProgram shaderToUse, FrameBuffer rtToUse) {
+	// Two-pass ping-pong:
+	//   1) Render `shader` into temporaryRT, reading state from positionTexture/velocityTexture as needed.
+	//   2) Copy temporaryRT into rtToUse so subsequent passes see the updated state.
+	private void executeUpdateTechnique(ShaderProgram shader, FrameBuffer rtToUse) {
 		Gdx.gl30.glDisable(GL30.GL_BLEND);
 
-		// Set the graphic device's rendering target to our scratchpad render target
+		// Pass 1: compute into scratchpad.
 		temporaryRT.begin();
 		{
-			// Clear the render target
-			// Clear the FBO fully
 			Gdx.gl30.glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 			Gdx.gl30.glClear(GL30.GL_COLOR_BUFFER_BIT);
 
-			// Resize the camera and the batch for the FBO / RT
 			_game.camera.setToOrtho(false, temporaryRT.getWidth(), temporaryRT.getHeight());
-			_game.batch.setProjectionMatrix(_game.camera.combined);
 
-			// Set the shader to use
-			_game.batch.setShader(shaderToUse);
+			shader.bind();
+			shader.setUniformMatrix("u_projTrans", _game.camera.combined);
+			applyUpdateShaderUniforms(shader);
 
-			// Begin the quickest and simplest sprite batch we can, then begin the specified technique!
-			_game.batch.begin();
-			{
-				applyUpdateShaderUniforms(shaderToUse);
-
-				// We pass in the randomTexture to be "drawn", even if it is just to make sure the shader has access to it
-				//
-				// We render a rectangle that is particleCount * particleCount to our current render target, which is the
-				// scratchpad render target.
-				//
-				// This call will cause 4 different things, depending on the current technique/shader...
-				//
-				// InitVelocities: For each pixel coming in, set the outgoing color to contain all zeros to be stored in the scratchpad
-				// texture's color channel at the current pixel.
-				//
-				// InitPositions: For each pixel coming in, set the outgoing color to contain a float4 with the current particle's
-				// position within screen bounds. This is to be stored in the scratchpad texture's color channel at the current pixel.
-				//
-				// UpdateVelocity: For each pixel coming in, use the current pixel's UV coords to look at velocity texture
-				// for previous data, and calculate the new velocity (Taking forces into account) that will be stored in the
-				// scratchpad texture's color channel at the current pixel.
-				//
-				// UpdatePosition: For each pixel coming in, use the current pixel's UV coords to look at velocity and position
-				// textures for previous data, and calculate the new position (Taking collision into account) that will be stored
-				// in the scratchpad texture's color channel at the current pixel.
-				//
-				// Later, we can extract the scratchpad render target's data to a texture that
-				Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE0);
-
-				_game.batch.draw(randomTexture, 0, 0, temporaryRT.getWidth(), temporaryRT.getHeight());
-			}
-			// End the technique and the sprite batch
-			_game.batch.end();
+			updatePassQuad.render(shader, GL30.GL_TRIANGLES);
 		}
 		temporaryRT.end();
 
-		// Set the graphic device's rendering target to our scratchpad render target
+		// Pass 2: blit scratchpad into the canonical state texture.
 		rtToUse.begin();
 		{
-			// Set the current technique to "CopyTexture"
-			//
-			// This is simply used to copy data from the temp/scratchpad texture to the proper by extracting data in the temp render target
-			// to a texture.
-			//
-			// This way, textures can be pulled off later from the velocities or positions render targets for further processing.
-			_game.batch.setShader(copyTexture);
-
-			// Resize the camera and the batch for the FBO / RT
 			_game.camera.setToOrtho(false, rtToUse.getWidth(), rtToUse.getHeight());
-			_game.batch.setProjectionMatrix(_game.camera.combined);
 
-			_game.batch.begin();
-			{
-				Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE0);
-				_game.batch.draw(temporaryTexture, 0, 0, rtToUse.getWidth(), rtToUse.getHeight());
-			}
-			_game.batch.end();
+			copyTexture.bind();
+			copyTexture.setUniformMatrix("u_projTrans", _game.camera.combined);
+			temporaryTexture.bind(0);
+			copyTexture.setUniformi("u_texture", 0);
+
+			updatePassQuad.render(copyTexture, GL30.GL_TRIANGLES);
 		}
-		// Unbind the FBO
 		rtToUse.end();
-
-		_game.batch.setShader(null);
 
 		Gdx.gl30.glEnable(GL30.GL_BLEND);
 	}
 
-	// Each update shader declares only the uniforms it actually uses, so set only those — ShaderProgram.pedantic
-	// will otherwise throw on any unknown name.
-	private void applyUpdateShaderUniforms(ShaderProgram shaderToUse) {
-		if (shaderToUse == initPositions) {
-			shaderToUse.setUniformf("spawnWidth", spawnWidth);
-			shaderToUse.setUniformf("spawnHeight", spawnHeight);
+	// Each update shader only declares the uniforms it actually reads, so we set exactly that set.
+	// Under ShaderProgram.pedantic any mismatch will throw here — which is the point.
+	private void applyUpdateShaderUniforms(ShaderProgram shader) {
+		if (shader == initPositions) {
+			bindRandomTexture(shader);
+			shader.setUniformf("spawnWidth", spawnWidth);
+			shader.setUniformf("spawnHeight", spawnHeight);
 			return;
 		}
 
-		if (shaderToUse == initVelocities || shaderToUse == copyTexture) {
+		if (shader == initVelocities) {
+			bindRandomTexture(shader);
 			return;
 		}
 
-		// Both update passes read the canonical state textures.
-		positionMapUpdate = positionTexture;
-		Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE1);
-		positionMapUpdate.bind();
-		shaderToUse.setUniformi("positionMap", 1);
+		// updatePositions + updateVelocities both read the canonical state textures and deltaTime.
+		positionTexture.bind(1);
+		shader.setUniformi("positionMap", 1);
+		velocityTexture.bind(2);
+		shader.setUniformi("velocityMap", 2);
+		shader.setUniformf("deltaTime", deltaTimeForShader * timeScale);
 
-		velocityMapUpdate = velocityTexture;
-		Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE2);
-		velocityMapUpdate.bind();
-		shaderToUse.setUniformi("velocityMap", 2);
+		if (shader == updateVelocities) {
+			shader.setUniformf("spawnWidth", spawnWidth);
+			shader.setUniformf("spawnHeight", spawnHeight);
+			shader.setUniformf("attractorPos", attractorPosition);
+			shader.setUniformf("attractorForce", currentAttractorForce);
+			shader.setUniformf("attractorMaxDistance", ATTRACTOR_MAX_DISTANCE);
+			shader.setUniformf("dragPercentage", dragPercentage);
 
-		shaderToUse.setUniformf("deltaTime", deltaTimeForShader * timeScale);
-
-		if (shaderToUse == updateVelocities) {
-			shaderToUse.setUniformf("spawnWidth", spawnWidth);
-			shaderToUse.setUniformf("spawnHeight", spawnHeight);
-			shaderToUse.setUniformf("attractorPos", attractorPosition);
-			shaderToUse.setUniformf("attractorForce", currentAttractorForce);
-			shaderToUse.setUniformf("attractorMaxDistance", ATTRACTOR_MAX_DISTANCE);
-			shaderToUse.setUniformf("dragPercentage", dragPercentage);
-
-			shaderToUse.setUniformi("circleColliderCount", circleColliderCount);
-			shaderToUse.setUniform4fv("circleColliders", circleColliderData, 0, circleColliderData.length);
-
-			shaderToUse.setUniformi("rectColliderCount", rectColliderCount);
-			shaderToUse.setUniform4fv("rectColliders", rectColliderData, 0, rectColliderData.length);
-
-			shaderToUse.setUniformi("pointForceCount", pointForceCount);
-			shaderToUse.setUniform4fv("pointForces", pointForceData, 0, pointForceData.length);
+			shader.setUniformi("circleColliderCount", circleColliderCount);
+			shader.setUniform4fv("circleColliders", circleColliderData, 0, circleColliderData.length);
+			shader.setUniformi("rectColliderCount", rectColliderCount);
+			shader.setUniform4fv("rectColliders", rectColliderData, 0, rectColliderData.length);
+			shader.setUniformi("pointForceCount", pointForceCount);
+			shader.setUniform4fv("pointForces", pointForceData, 0, pointForceData.length);
 		}
+	}
+
+	private void bindRandomTexture(ShaderProgram shader) {
+		randomTexture.bind(0);
+		shader.setUniformi("u_texture", 0);
 	}
 }

@@ -66,8 +66,8 @@ void main(void)
             COLLIDER_RESILIENCE, COLLIDER_FRICTION, COLLIDER_MIN_VELOCITY);
     }
 
-    // Wall-bounce test. Uses the pre-collider velocity intentionally, matching existing behaviour.
-    vec2 newPosition = currPosition + (currVelocity * deltaTime);
+    // Wall-bounce test on the post-force, post-collider velocity so accumulated changes are respected.
+    vec2 newPosition = currPosition + (newVelocity * deltaTime);
 
     if (newPosition.x < 0.0 || newPosition.x > spawnWidth)
     {
