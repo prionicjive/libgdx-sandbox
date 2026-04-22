@@ -100,10 +100,10 @@ vec2 rectConstraint(vec2 _Velocity, vec2 _Position, vec2 rectCenter, float halfW
 {
     vec2 newPosition = _Position + (_Velocity * deltaTime);
 
-    vec2 topLeft = vec2(rectCenter.y - halfWidth, rectCenter.y + halfHeight);
-    vec2 topRight = vec2(rectCenter.y + halfWidth, rectCenter.y + halfHeight);
-    vec2 bottomRight = vec2(rectCenter.y + halfWidth, rectCenter.y - halfHeight);
-    vec2 bottomLeft = vec2(rectCenter.y - halfWidth, rectCenter.y - halfHeight);
+    vec2 topLeft = vec2(rectCenter.x - halfWidth, rectCenter.y + halfHeight);
+    vec2 topRight = vec2(rectCenter.x + halfWidth, rectCenter.y + halfHeight);
+    vec2 bottomRight = vec2(rectCenter.x + halfWidth, rectCenter.y - halfHeight);
+    vec2 bottomLeft = vec2(rectCenter.x - halfWidth, rectCenter.y - halfHeight);
 
     // First, see if the new position is in the rectangle
     if(isPointInRect(newPosition, bottomLeft, topRight))
