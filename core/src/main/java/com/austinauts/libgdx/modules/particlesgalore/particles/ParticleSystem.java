@@ -210,7 +210,9 @@ public class ParticleSystem {
 		spawnWidth = _game.virtualScreenSize.width;
 		spawnHeight = _game.virtualScreenSize.height;
 
-		// Ensure that not everything about a shader needs to be configured
+		// SpriteBatch.flush() calls setUniformi("u_texture", 0) on every custom shader, but the update-pass
+		// shaders don't all read u_texture. Leaving pedantic off avoids that mismatch. Moving the update passes
+		// off SpriteBatch (direct Mesh/ShaderProgram) would let us re-enable pedantic.
 		ShaderProgram.pedantic = false;
 
 		// Get the vertex passthrough shader
@@ -355,29 +357,7 @@ public class ParticleSystem {
 			// Begin the quickest and simplest sprite batch we can, then begin the specified technique!
 			_game.batch.begin();
 			{
-				//  When the textures have been initialized with data (Which should be pretty much ALL the time), be sure to
-				// update the texture parameters in the shader so they can be referenced.
-				if (areDataTexutresInitialized) {
-					positionMapUpdate = positionTexture;
-					Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE1);
-					positionMapUpdate.bind();
-					shaderToUse.setUniformi("positionMap", 1);
-
-					velocityMapUpdate = velocityTexture;
-					Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE2);
-					velocityMapUpdate.bind();
-					shaderToUse.setUniformi("velocityMap", 2);
-				}
-
-				// Set shader params
-				shaderToUse.setUniformf("spawnWidth", spawnWidth);
-				shaderToUse.setUniformf("spawnHeight", spawnHeight);
-
-				// Force and attractor params
-				shaderToUse.setUniformf("attractorPos", attractorPosition);
-				shaderToUse.setUniformf("attractorForce", currentAttractorForce);
-				shaderToUse.setUniformf("dragPercentage", dragPercentage);
-				shaderToUse.setUniformf("deltaTime", deltaTimeForShader * timeScale); // Utilize time scale
+				applyUpdateShaderUniforms(shaderToUse);
 
 				// We pass in the randomTexture to be "drawn", even if it is just to make sure the shader has access to it
 				//
@@ -438,5 +418,40 @@ public class ParticleSystem {
 		_game.batch.setShader(null);
 
 		Gdx.gl30.glEnable(GL30.GL_BLEND);
+	}
+
+	// Each update shader declares only the uniforms it actually uses, so set only those — ShaderProgram.pedantic
+	// will otherwise throw on any unknown name.
+	private void applyUpdateShaderUniforms(ShaderProgram shaderToUse) {
+		if (shaderToUse == initPositions) {
+			shaderToUse.setUniformf("spawnWidth", spawnWidth);
+			shaderToUse.setUniformf("spawnHeight", spawnHeight);
+			return;
+		}
+
+		if (shaderToUse == initVelocities || shaderToUse == copyTexture) {
+			return;
+		}
+
+		// Both update passes read the canonical state textures.
+		positionMapUpdate = positionTexture;
+		Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE1);
+		positionMapUpdate.bind();
+		shaderToUse.setUniformi("positionMap", 1);
+
+		velocityMapUpdate = velocityTexture;
+		Gdx.gl30.glActiveTexture(GL30.GL_TEXTURE2);
+		velocityMapUpdate.bind();
+		shaderToUse.setUniformi("velocityMap", 2);
+
+		shaderToUse.setUniformf("deltaTime", deltaTimeForShader * timeScale);
+
+		if (shaderToUse == updateVelocities) {
+			shaderToUse.setUniformf("spawnWidth", spawnWidth);
+			shaderToUse.setUniformf("spawnHeight", spawnHeight);
+			shaderToUse.setUniformf("attractorPos", attractorPosition);
+			shaderToUse.setUniformf("attractorForce", currentAttractorForce);
+			shaderToUse.setUniformf("dragPercentage", dragPercentage);
+		}
 	}
 }
